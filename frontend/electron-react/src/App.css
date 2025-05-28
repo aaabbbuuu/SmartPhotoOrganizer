@@ -1,0 +1,92 @@
+.App {
+  text-align: center;
+  padding: 20px;
+  font-family: sans-serif;
+}
+
+.app-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+  margin-bottom: 20px;
+}
+
+.controls {
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between; /* Align items */
+  align-items: center; /* Vertically align items */
+  gap: 10px;
+}
+
+.controls button, .controls select {
+  padding: 10px 15px;
+  font-size: 16px;
+  cursor: pointer;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.controls button:hover {
+  background-color: #f0f0f0;
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.photo-item {
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 10px;
+  background-color: #fff;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Center content horizontally */
+}
+
+.photo-item img {
+  max-width: 100%;
+  height: 150px; /* Fixed height for thumbnails */
+  object-fit: cover; /* Crop to fit, maintain aspect ratio */
+  border-radius: 3px;
+  margin-bottom: 8px;
+}
+
+.photo-item .info {
+  font-size: 0.8em;
+  color: #555;
+  text-align: left; /* Align text to left within info box */
+  width: 100%; /* Make info box take full width */
+}
+.photo-item .info p {
+  margin: 3px 0;
+  word-break: break-all; /* Prevent long filenames from breaking layout */
+}
+
+.loading, .error {
+  font-size: 1.2em;
+  margin-top: 20px;
+}
+.error {
+  color: red;
+}
+
+.status-message {
+    margin-top: 10px;
+    padding: 10px;
+    border-radius: 4px;
+}
+.status-message.success {
+    background-color: #e6ffed;
+    color: #28a745;
+    border: 1px solid #c3e6cb;
+}
+.status-message.error-msg { /* Differentiate from .error for general errors */
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+}

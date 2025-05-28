@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+env/
+venv/
+*.db
+*.sqlite3
+database/photos.db # Explicitly ignore the dev database
+assets/thumbnails/*
+!assets/thumbnails/.gitkeep # Keep the folder in git if empty
+
+# Node
+node_modules/
+npm-debug.log
+yarn-error.log
+build/ # React build output
+dist/ # Electron build output
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

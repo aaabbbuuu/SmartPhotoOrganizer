@@ -1,0 +1,102 @@
+{
+  "name": "Smart Photo Organizer",
+  "description": "Development plan for a desktop app using Electron + React + FastAPI + TensorFlow",
+  "columns": [
+    {
+      "name": "Phase 1: Core Setup & Viewing",
+      "cards": [
+        {
+          "note": "Set up Electron + React boilerplate"
+        },
+        {
+          "note": "Initialize FastAPI backend with SQLite"
+        },
+        {
+          "note": "Implement folder scanning and metadata extraction"
+        },
+        {
+          "note": "Generate thumbnails and store in DB"
+        },
+        {
+          "note": "Render photo grid view with sorting by date"
+        }
+      ]
+    },
+    {
+      "name": "Phase 2: AI Tagging",
+      "cards": [
+        {
+          "note": "Integrate TensorFlow with pre-trained model"
+        },
+        {
+          "note": "Implement background AI classification tasks"
+        },
+        {
+          "note": "Store AI-generated tags with confidence scores"
+        },
+        {
+          "note": "Display AI tags in frontend"
+        }
+      ]
+    },
+    {
+      "name": "Phase 3: Manual Tagging & Rating",
+      "cards": [
+        {
+          "note": "Tag input field with autocomplete UI"
+        },
+        {
+          "note": "Backend API to add/remove tags"
+        },
+        {
+          "note": "Implement star rating in UI and DB"
+        },
+        {
+          "note": "Create filtering UI for date, tags, ratings"
+        }
+      ]
+    },
+    {
+      "name": "Phase 4: Album Management",
+      "cards": [
+        {
+          "note": "Create albums and display them"
+        },
+        {
+          "note": "Add/remove images from albums"
+        },
+        {
+          "note": "Build album view in frontend"
+        }
+      ]
+    },
+    {
+      "name": "Phase 5: Export to Instagram/Flickr (Optional)",
+      "cards": [
+        {
+          "note": "Research API + OAuth flow for Instagram"
+        },
+        {
+          "note": "Add backend logic for album export"
+        },
+        {
+          "note": "Frontend flow for authentication + export"
+        }
+      ]
+    },
+    {
+      "name": "Phase 6: Polish & Packaging",
+      "cards": [
+        {
+          "note": "Optimize performance (UI + AI tasks)"
+        },
+        {
+          "note": "Improve error handling and logging"
+        },
+        {
+          "note": "Package for macOS, Windows, Linux"
+        }
+      ]
+    }
+  ]
+}

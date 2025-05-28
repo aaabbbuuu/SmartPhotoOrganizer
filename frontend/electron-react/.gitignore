@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+venv/
+backend/venv/ # If venv is inside backend
+
+# Database
+*.sqlite3
+database/photos.db
+
+# Node / Build Artifacts
+node_modules/
+frontend/electron-react/node_modules/ # Explicitly if nested
+
+# React build output
+frontend/electron-react/build/
+
+# Electron build output (check where electron-builder outputs, usually dist or out in project root or frontend)
+dist/
+out/
+frontend/electron-react/dist/ # If electron-builder outputs here
+
+# Log files
+*.log
+npm-debug.log*
+yarn-error.log
+frontend/electron-react/npm-debug.log* # If logs are specific to frontend dir
+frontend/electron-react/yarn-error.log
+
+# Generated Assets
+assets/thumbnails/*
+!assets/thumbnails/.gitkeep # Optional: to keep the empty folder in git
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Environment Variables
+.env
+backend/.env # If you have a .env inside backend specifically
+frontend/electron-react/.env # If you have one for React (e.g. REACT_APP_ variables)
+
+# IDE
+.vscode/
+# .idea/ # Uncomment if you or collaborators use JetBrains IDEs
