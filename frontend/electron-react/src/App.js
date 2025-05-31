@@ -4,8 +4,26 @@ import './App.css';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000'; // Backend URL
 
+// Define a type for Tag (matching backend schema)
+// interface Tag { // Using JSDoc for type hinting in JS
+//   id: number;
+//   name: string;
+// }
+
+// Define a type for Image (matching backend schema)
+// interface Photo {
+//   id: number;
+//   file_path: string;
+//   original_filename?: string;
+//   capture_date?: string; // Dates will be strings from JSON
+//   camera_model?: string;
+//   thumbnail_path?: string;
+//   date_added: string;
+//   associated_tags: Tag[]; // Updated to use Tag interface
+// }
+
 function App() {
-  const [photos, setPhotos] = useState([]);
+  const [photos, setPhotos] = useState([]); // No explicit type in JS, but treat as Photo[]
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
   const [scanStatus, setScanStatus] = useState(null);
@@ -20,40 +38,41 @@ function App() {
         params: {
           sort_by: sortBy,
           sort_order: sortOrder,
-          limit: 200 // Fetch more for initial view, implement pagination later
+          limit: 200 
         }
       });
       setPhotos(response.data);
     } catch (err) {
       console.error("Error fetching photos:", err);
-      setError(`Failed to load photos. Ensure the backend is running. (${err.message})`);
-      setPhotos([]); // Clear photos on error
+      setError(`Failed to load photos. (${err.message})`);
+      setPhotos([]);
     } finally {
       setIsLoading(false);
     }
-  }, [sortBy, sortOrder]); // Dependencies for useCallback
+  }, [sortBy, sortOrder]);
 
   useEffect(() => {
     fetchPhotos();
-  }, [fetchPhotos]); // fetchPhotos is now stable due to useCallback
+  }, [fetchPhotos]);
 
   const handleSelectFolder = async () => {
     if (window.electronAPI && window.electronAPI.openDirectoryDialog) {
       try {
         const folderPath = await window.electronAPI.openDirectoryDialog();
         if (folderPath) {
-          console.log('Selected folder:', folderPath);
           setIsLoading(true);
           setError(null);
-          setScanStatus(null);
+          setScanStatus('Scanning folder and processing images... this may take a while for AI tagging.');
           try {
             const response = await axios.post(`${API_BASE_URL}/api/photos/scan-folder`, {
               folder_path: folderPath,
             });
-            setScanStatus(`Scan complete: ${response.data.new_images_added} new images added. ${response.data.total_images_processed} processed. Errors: ${response.data.errors.length}`);
-            fetchPhotos(); // Refresh photo list
+            // AI tagging is background, so success here means scan started
+            setScanStatus(`Scan initiated: ${response.data.new_images_added} new images queued. ${response.data.total_images_processed} processed. AI tagging runs in background. Errors: ${response.data.errors.length}. Refresh to see tags.`);
+            // Fetch photos immediately to show new images without tags yet.
+            // Tags will appear on subsequent fetches or refresh.
+            fetchPhotos(); 
           } catch (err) {
-            console.error("Error scanning folder:", err);
             const errorDetail = err.response?.data?.detail || err.message;
             setError(`Failed to scan folder: ${errorDetail}`);
             setScanStatus(null);
@@ -62,30 +81,21 @@ function App() {
           }
         }
       } catch (err) {
-        console.error('Error in openDirectoryDialog:', err);
         setError('Could not open folder dialog.');
       }
     } else {
-      setError('Folder selection is not available in this environment (web browser or electronAPI not loaded).');
-      console.warn("electronAPI or openDirectoryDialog not found on window object.");
+      setError('Folder selection is not available.');
     }
   };
 
-  const handleSortChange = (e) => {
-    setSortBy(e.target.value);
-  };
-
-  const handleOrderChange = (e) => {
-    setSortOrder(e.target.value);
-  };
+  const handleSortChange = (e) => setSortBy(e.target.value);
+  const handleOrderChange = (e) => setSortOrder(e.target.value);
   
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
       return new Date(dateString).toLocaleString();
-    } catch (e) {
-      return 'Invalid Date';
-    }
+    } catch (e) { return 'Invalid Date'; }
   };
 
   return (
@@ -96,7 +106,7 @@ function App() {
 
       <div className="controls">
         <button onClick={handleSelectFolder} disabled={isLoading}>
-          {isLoading ? 'Processing...' : 'Select Photo Folder to Scan'}
+          {isLoading && scanStatus ? 'Processing...' : 'Select Photo Folder to Scan'}
         </button>
         <div>
           <label htmlFor="sort-by">Sort By: </label>
@@ -114,8 +124,9 @@ function App() {
         </div>
       </div>
       
-      {scanStatus && <div className="status-message success">{scanStatus}</div>}
-      {error && <div className="status-message error-msg">{error}</div>}
+      {scanStatus && <div className={`status-message ${error ? 'error-msg' : 'success'}`}>{scanStatus}</div>}
+      {error && !scanStatus && <div className="status-message error-msg">{error}</div>} {/* Show general errors if no scanStatus */}
+      
       {isLoading && !photos.length && <p className="loading">Loading photos...</p>}
       
       {photos.length > 0 ? (
@@ -134,12 +145,18 @@ function App() {
                 <p title={photo.original_filename}><strong>File:</strong> {photo.original_filename ? photo.original_filename.substring(0,20) + (photo.original_filename.length > 20 ? "..." : "") : 'N/A'}</p>
                 <p><strong>Date:</strong> {formatDate(photo.capture_date)}</p>
                 <p><strong>Camera:</strong> {photo.camera_model || 'N/A'}</p>
+                {photo.associated_tags && photo.associated_tags.length > 0 && (
+                  <p className="tags">
+                    <strong>Tags: </strong>
+                    {photo.associated_tags.map(tag => tag.name).join(', ')}
+                  </p>
+                )}
               </div>
             </div>
           ))}
         </div>
       ) : (
-        !isLoading && !error && <p>No photos found. Try scanning a folder.</p>
+        !isLoading && !error && <p>No photos found. Try scanning a folder or check applied filters.</p>
       )}
     </div>
   );

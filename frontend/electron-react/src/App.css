@@ -16,7 +16,7 @@
   display: flex;
   justify-content: space-between; /* Align items */
   align-items: center; /* Vertically align items */
-  gap: 10px;
+  gap: 9px;
 }
 
 .controls button, .controls select {
@@ -65,6 +65,12 @@
 .photo-item .info p {
   margin: 3px 0;
   word-break: break-all; /* Prevent long filenames from breaking layout */
+}
+.photo-item .info .tags {
+  font-size: 0.9em;
+  color: #337ab7; /* Blue color for tags */
+  margin-top: 5px;
+  word-break: break-word; /* Allow long tag lists to wrap */
 }
 
 .loading, .error {
