@@ -21,14 +21,14 @@ A desktop application for photographers and creatives to organize, tag, rate, an
 - Generated image thumbnails
 - Displayed grid view of photos with sorting by date
 
----
-
-## 🚀 Upcoming Features
-
-### Phase 2: AI Tagging
+## ✅ Phase 2: AI Tagging Completed
 - Integrate TensorFlow
 - Background image classification
 - Store and display AI-generated tags
+
+---
+
+## 🚀 Upcoming Features
 
 ### Phase 3: Manual Tagging & Rating
 - Manual tag management
