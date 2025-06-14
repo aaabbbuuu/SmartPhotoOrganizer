@@ -26,16 +26,49 @@ def process_image_tags_background(db: Session, image_id: int, file_path: str):
         print(f"AI Tagging Background: Found tags for {file_path}: {ai_tags_with_confidence}")
         for tag_name, confidence in ai_tags_with_confidence:
             try:
-                # Use a new DB session for background tasks or ensure the passed 'db' session is managed correctly.
-                # For simplicity here, we're using the passed 'db' session, but for long-running tasks,
-                # it's better to create a new session within the background task.
-                # However, FastAPI's BackgroundTasks run in the same process/thread pool, so this might be okay.
                 crud.add_tag_to_image(db, image_id=image_id, tag_name=tag_name, is_ai=True, confidence=confidence)
             except Exception as e:
                 print(f"AI Tagging Background: Error adding tag '{tag_name}' to image {image_id}: {e}")
         # db.commit() # Commit after all tags for an image are processed by add_tag_to_image
     else:
         print(f"AI Tagging Background: No AI tags found for {file_path}")
+
+@router.post("/images/{image_id}/tags", response_model=schemas.Tag, status_code=201) # Return the added/existing tag
+async def add_manual_tag_to_image_endpoint(
+    image_id: int, 
+    tag_request: schemas.AddTagRequest, # Use the new request schema
+    db: Session = Depends(get_db)
+):
+    tag_name = tag_request.tag_name.strip().lower()
+    if not tag_name:
+        raise HTTPException(status_code=400, detail="Tag name cannot be empty")
+
+    # The crud function handles get_or_create for the tag model itself
+    image_tag_assoc = crud.add_tag_to_image(db=db, image_id=image_id, tag_name=tag_name, is_ai_generated=False)
+    
+    if not image_tag_assoc:
+        # This would happen if image_id is invalid, crud.add_tag_to_image returns None
+        raise HTTPException(status_code=404, detail=f"Image with id {image_id} not found or tag could not be added.")
+    
+    # image_tag_assoc.tag is the SQLAlchemy Tag model instance
+    return image_tag_assoc.tag # Pydantic will convert this using schemas.Tag
+
+@router.delete("/images/{image_id}/tags/{tag_id}", status_code=204) # No content on successful delete
+async def remove_tag_from_image_endpoint(
+    image_id: int, 
+    tag_id: int, 
+    db: Session = Depends(get_db)
+):
+    
+    db_tag = db.query(models.Tag).filter(models.Tag.id == tag_id).first()
+    if not db_tag:
+        raise HTTPException(status_code=404, detail=f"Tag with id {tag_id} not found.")
+
+    success = crud.remove_tag_from_image(db=db, image_id=image_id, tag_id=db_tag.id)
+    if not success:
+        # This could mean the image_id was invalid or the tag wasn't associated with this specific image
+        raise HTTPException(status_code=404, detail=f"Tag not found on image or image not found.")
+    return {"detail": "Tag removed successfully"} # Or just return status 204
 
 
 @router.post("/scan-folder", response_model=schemas.ScanFolderResponse)
@@ -134,17 +167,24 @@ async def read_images(
         if db_image.tags: 
             for image_tag_assoc in db_image.tags:
                 if image_tag_assoc.tag: # image_tag_assoc.tag is a Tag model instance
-                    tags_for_image_schema.append(schemas.Tag.from_orm(image_tag_assoc.tag))
+                    tags_for_image_schema.append(
+                        schemas.ImageTagInfo(
+                            id=image_tag_assoc.tag.id,
+                            name=image_tag_assoc.tag.name,
+                            is_ai_generated=image_tag_assoc.is_ai_generated,
+                            confidence=image_tag_assoc.confidence
+                    )
+                )
         
         image_data_for_response_schema = {
-        "id": db_image.id,
-        "file_path": db_image.file_path,
-        "original_filename": db_image.original_filename,
-        "capture_date": db_image.capture_date,
-        "camera_model": db_image.camera_model,
-        "thumbnail_path": db_image.thumbnail_path,
-        "date_added": db_image.date_added,
-        "associated_tags": tags_for_image_schema
+            "id": db_image.id,
+            "file_path": db_image.file_path,
+            "original_filename": db_image.original_filename,
+            "capture_date": db_image.capture_date,
+            "camera_model": db_image.camera_model,
+            "thumbnail_path": db_image.thumbnail_path,
+            "date_added": db_image.date_added,
+            "associated_tags": tags_for_image_schema
         }
         response_images.append(schemas.Image(**image_data_for_response_schema))
         

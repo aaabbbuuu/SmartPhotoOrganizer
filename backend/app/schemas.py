@@ -14,6 +14,9 @@ class Tag(TagBase):
     class Config:
         from_attributes = True # CHANGED
 
+class AddTagRequest(BaseModel):
+    tag_name: str
+
 # --- Image Schemas (Updated) ---
 class ImageBase(BaseModel):
     file_path: str
@@ -27,10 +30,19 @@ class ImageCreate(ImageBase): # This schema is used with from_orm
     class Config: # Add Config here too if ImageCreate is used with from_orm
         from_attributes = True # CHANGED
 
+class ImageTagInfo(BaseModel): # This will represent a tag associated with an image
+    id: int # Tag ID
+    name: str # Tag name
+    is_ai_generated: bool
+    confidence: Optional[float] = None
+
+    class Config:
+        from_attributes = True # For Pydantic V2
+        
 class Image(ImageBase):
     id: int
     date_added: datetime
-    associated_tags: List[Tag] = []
+    associated_tags: List[ImageTagInfo] = [] 
 
     class Config:
         from_attributes = True # CHANGED

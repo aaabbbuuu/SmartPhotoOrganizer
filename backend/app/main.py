@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from .core.database import engine, Base
-from .routers import photos
+from .routers import photos, tags
 from .core.config import THUMBNAILS_DIR, FRONTEND_ORIGIN
 
 # Create database tables
@@ -27,6 +27,7 @@ app.add_middleware(
 )
 
 app.include_router(photos.router)
+app.include_router(tags.router)
 
 # Mount the thumbnails directory to be servable
 # The path "/thumbnails" will serve files from THUMBNAILS_DIR
