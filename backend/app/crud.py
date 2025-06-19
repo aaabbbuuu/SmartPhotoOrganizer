@@ -7,7 +7,7 @@ def get_image_by_path(db: Session, file_path: str) -> Optional[models.Image]:
 
 def create_image(db: Session, image: schemas.ImageCreate) -> models.Image:
     db_image_data = image.model_dump()
-    # db_image_data = image.model_dump() # Pydantic V2
+    # db_image_data = image.model_dump()
     db_image = models.Image(**db_image_data)
     db.add(db_image)
     db.commit()
@@ -51,33 +51,29 @@ def add_tag_to_image(db: Session, image_id: int, tag_name: str, is_ai_generated:
         print(f"CRUD: Image with id {image_id} not found for adding tag.")
         return None
     
-    db_tag = get_or_create_tag(db, tag_name=tag_name.strip().lower()) # Normalize tag: lowercase and strip whitespace
+    db_tag = get_or_create_tag(db, tag_name=tag_name.strip().lower()) 
     
     existing_image_tag = db.query(models.ImageTag).filter_by(image_id=image_id, tag_id=db_tag.id).first()
     
     if existing_image_tag:
-        # If it's an AI tag being re-added with possibly higher confidence
         if is_ai_generated and confidence is not None:
             if existing_image_tag.confidence is None or confidence > existing_image_tag.confidence:
                 existing_image_tag.confidence = confidence
-                existing_image_tag.is_ai_generated = True # Ensure it's marked as AI
+                existing_image_tag.is_ai_generated = True
                 db.commit()
                 db.refresh(existing_image_tag)
-        # If a manual tag is "added" but already exists as manual, do nothing.
-        # If it existed as AI and is now added manually, we might want to update is_ai_generated to False.
         elif not is_ai_generated and existing_image_tag.is_ai_generated:
             existing_image_tag.is_ai_generated = False
-            existing_image_tag.confidence = None # Clear AI confidence
+            existing_image_tag.confidence = None 
             db.commit()
             db.refresh(existing_image_tag)
         return existing_image_tag
 
-    # If association does not exist, create it
     db_image_tag = models.ImageTag(
         image_id=image_id, 
         tag_id=db_tag.id, 
         is_ai_generated=is_ai_generated, 
-        confidence=confidence if is_ai_generated else None # Only store confidence for AI tags
+        confidence=confidence if is_ai_generated else None 
     )
     db.add(db_image_tag)
     db.commit()
@@ -101,3 +97,16 @@ def remove_tag_from_image(db: Session, image_id: int, tag_id: int) -> bool:
 
 def get_all_tags(db: Session) -> List[models.Tag]:
     return db.query(models.Tag).order_by(models.Tag.name).all()
+
+def update_image_rating(db: Session, image_id: int, rating: int) -> Optional[models.Image]:
+    db_image = db.query(models.Image).filter(models.Image.id == image_id).first()
+    if db_image:
+        if 0 <= rating <= 5:
+            db_image.rating = rating
+            db.commit()
+            db.refresh(db_image)
+            return db_image
+        else:
+            print(f"CRUD: Invalid rating value {rating} for image {image_id}.")
+            return None 
+    return None

@@ -5,7 +5,6 @@ import './App.css';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
 
-// JSDoc type hints for better readability (optional but helpful)
 /**
  * @typedef {object} TagInfo
  * @property {number} id
@@ -38,12 +37,25 @@ function App() {
   /** @type {[{id: number, name: string}[], React.Dispatch<React.SetStateAction<{id: number, name: string}[]>>]} */
   const [allTags, setAllTags] = useState([]); // For autocomplete later
 
-  // State to manage the input for adding a new tag for each photo
-  // This is a simple way; for many photos, a more complex state management might be better
-  const [tagInputs, setTagInputs] = useState({}); // e.g., { photoId1: "new tag text", photoId2: "" }
+  const [tagInputs, setTagInputs] = useState({}); 
 
   const handleTagInputChange = (photoId, value) => {
     setTagInputs(prev => ({ ...prev, [photoId]: value }));
+  };
+
+  const handleRatePhoto = async (photoId, newRating) => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/photos/images/${photoId}/rate`, {
+        rating: newRating
+      });
+      setPhotos(prevPhotos => 
+        prevPhotos.map(p => p.id === photoId ? response.data : p)
+      );
+      setError(null); 
+    } catch (err) {
+      console.error(`Error rating photo ${photoId}:`, err);
+      setError(`Failed to rate photo: ${err.response?.data?.detail || err.message}`);
+    }
   };
 
   const fetchPhotos = useCallback(async () => {
@@ -73,15 +85,14 @@ function App() {
       setAllTags(response.data);
     } catch (err) {
       console.error("Failed to fetch all tags:", err);
-      // Not setting a global error for this, as it's for autocomplete
     }
   }, []);
 
 
   useEffect(() => {
     fetchPhotos();
-    fetchAllTags(); // Fetch all tags on initial load and when fetchPhotos dependencies change (or could be separate)
-  }, [fetchPhotos, fetchAllTags]); // Added fetchAllTags
+    fetchAllTags(); 
+  }, [fetchPhotos, fetchAllTags]); 
 
   const handleSelectFolder = async () => {
     if (window.electronAPI && window.electronAPI.openDirectoryDialog) {
@@ -97,7 +108,7 @@ function App() {
             });
             setScanStatus(`Scan initiated: ${response.data.new_images_added} new images queued. ${response.data.total_images_processed} processed. AI tagging runs in background. Errors: ${response.data.errors.length}. Refresh to see tags.`);
             fetchPhotos(); 
-            fetchAllTags(); // Re-fetch all tags in case new ones were created by AI
+            fetchAllTags(); 
           } catch (err) {
             const errorDetail = err.response?.data?.detail || err.message;
             setError(`Failed to scan folder: ${errorDetail}`);
@@ -127,17 +138,13 @@ function App() {
   const handleAddTag = async (photoId, tagName) => {
     const trimmedTagName = tagName.trim();
     if (!trimmedTagName) return;
-    // Consider setting a specific loading state for the item being tagged
-    // For now, using global isLoading might make the whole UI feel slow.
-    // Let's avoid global isLoading for add/remove tag for better UX.
-    // setIsLoading(true); 
     try {
       await axios.post(`${API_BASE_URL}/api/photos/images/${photoId}/tags`, {
         tag_name: trimmedTagName
       });
-      fetchPhotos(); // Re-fetch photos to show updated tags
-      fetchAllTags(); // Re-fetch all tags in case a new one was created
-      setTagInputs(prev => ({ ...prev, [photoId]: '' })); // Clear input for this photo
+      fetchPhotos(); 
+      fetchAllTags(); 
+      setTagInputs(prev => ({ ...prev, [photoId]: '' })); 
     } catch (err) {
       console.error(`Error adding tag to photo ${photoId}:`, err);
       setError(`Failed to add tag: ${err.response?.data?.detail || err.message}`);
@@ -150,8 +157,8 @@ function App() {
     // setIsLoading(true);
     try {
       await axios.delete(`${API_BASE_URL}/api/photos/images/${photoId}/tags/${tagId}`);
-      fetchPhotos(); // Re-fetch photos
-      fetchAllTags(); // Re-fetch if a tag might become orphaned and deleted (though our backend doesn't do this yet)
+      fetchPhotos(); 
+      fetchAllTags(); 
     } catch (err) {
       console.error(`Error removing tag ${tagId} from photo ${photoId}:`, err);
       setError(`Failed to remove tag: ${err.response?.data?.detail || err.message}`);
@@ -159,6 +166,25 @@ function App() {
       // setIsLoading(false);
     }
   };
+
+  const StarRating = ({ rating, onRate, photoId }) => {
+  const stars = [1, 2, 3, 4, 5];
+  return (
+    <div className="star-rating">
+      {stars.map((starValue) => (
+        <span
+          key={starValue}
+          className={`star ${starValue <= rating ? 'filled' : ''}`}
+          onClick={() => onRate(photoId, starValue)}
+          title={`Rate ${starValue} star${starValue > 1 ? 's' : ''}`}
+        >
+          {/* Using text stars, can be replaced with SVGs or icon font */}
+          {starValue <= rating ? '★' : '☆'}
+        </span>
+      ))}
+    </div>
+  );
+};
 
   return (
     <div className="App">
@@ -207,6 +233,13 @@ function App() {
                 <p title={photo.original_filename}><strong>File:</strong> {photo.original_filename ? photo.original_filename.substring(0,20) + (photo.original_filename.length > 20 ? "..." : "") : 'N/A'}</p>
                 <p><strong>Date:</strong> {formatDate(photo.capture_date)}</p>
                 <p><strong>Camera:</strong> {photo.camera_model || 'N/A'}</p>
+                
+                {/* Star Rating Display */}
+                <StarRating 
+                  photoId={photo.id} 
+                  rating={photo.rating || 0} // Ensure photo.rating exists and has a default
+                  onRate={handleRatePhoto} 
+                />
                 
                 {/* Display Tags */}
                 {photo.associated_tags && photo.associated_tags.length > 0 && (

@@ -146,3 +146,27 @@
   border-radius: 3px;
   width: calc(100% - 12px); /* Account for padding */
 }
+
+.star-rating {
+  margin-top: 8px;
+  margin-bottom: 8px;
+  display: flex; /* Align stars in a row */
+  justify-content: center; /* Center stars if photo-item info is centered */
+}
+
+.star {
+  font-size: 1.5em;
+  color: #ccc; /* Color for empty stars */
+  cursor: pointer;
+  margin: 0 2px; /* Spacing between stars */
+  transition: color 0.2s ease-in-out;
+}
+
+.star.filled {
+  color: #f8d64e; /* Gold color for filled stars */
+}
+
+.star:hover,
+.star:hover ~ .star { 
+  color: #f8d64e;
+}

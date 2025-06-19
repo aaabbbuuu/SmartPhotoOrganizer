@@ -12,6 +12,7 @@ class Image(Base):
     camera_model = Column(String, nullable=True)
     thumbnail_path = Column(String, nullable=True)
     date_added = Column(DateTime, default=func.now())
+    rating = Column(Integer, default=0, index=True, nullable=False)
 
     # Relationship to image_tags
     tags = relationship("ImageTag", back_populates="image")
