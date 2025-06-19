@@ -168,6 +168,7 @@ async def read_images(
             "camera_model": db_image.camera_model,
             "thumbnail_path": db_image.thumbnail_path,
             "date_added": db_image.date_added,
+            "rating": db_image.rating,
             "associated_tags": tags_for_image_schema
         }
         response_images.append(schemas.Image(**image_data_for_response_schema))
