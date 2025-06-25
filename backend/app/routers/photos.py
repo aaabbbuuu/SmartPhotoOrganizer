@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks 
 from sqlalchemy.orm import Session, selectinload
 from typing import List, Optional
+from datetime import datetime
 import os
 
 from .. import crud, models, schemas
@@ -129,27 +130,33 @@ async def scan_folder_for_images(
 async def read_images(
     skip: int = 0, 
     limit: int = 100, 
-    sort_by: str = Query("capture_date", enum=["capture_date", "date_added", "original_filename", "camera_model"]),
+    sort_by: str = Query("capture_date", enum=["capture_date", "date_added", "original_filename", "camera_model", "rating"]), # Added rating
     sort_order: str = Query("desc", enum=["asc", "desc"]),
+    date_start: Optional[datetime] = Query(None, description="Filter by capture date (start) YYYY-MM-DDTHH:MM:SS"),
+    date_end: Optional[datetime] = Query(None, description="Filter by capture date (end) YYYY-MM-DDTHH:MM:SS"),
+    camera_models: Optional[List[str]] = Query(None, description="List of camera models to filter by"),
+    tag_names: Optional[List[str]] = Query(None, description="List of tag names (photo must have at least one)"),
+    rating_min: Optional[int] = Query(None, ge=0, le=5, description="Minimum rating (0-5)"),
     db: Session = Depends(get_db)
 ):
-    db_images = db.query(models.Image)\
-        .options(selectinload(models.Image.tags).selectinload(models.ImageTag.tag))\
-        .order_by(getattr(models.Image, sort_by).desc().nullslast() if sort_order == "desc" 
-                  else getattr(models.Image, sort_by).asc().nullslast())
-        # .offset(skip)\
-        # .limit(limit)\
-        # .all()
-
-    all_db_images_count = db_images.count()
-
-    db_images = db_images.offset(skip).limit(limit).all()
+    db_images_list = crud.get_images( 
+        db, 
+        skip=skip, 
+        limit=limit, 
+        sort_by=sort_by, 
+        sort_order=sort_order,
+        date_start=date_start,
+        date_end=date_end,
+        camera_models=camera_models,
+        tag_names=tag_names,
+        rating_min=rating_min
+    )
 
     response_images = []
-    for db_image in db_images:
+    for db_image_item in db_images_list: 
         tags_for_image_schema = []
-        if db_image.tags: 
-            for image_tag_assoc in db_image.tags:
+        if db_image_item.tags: 
+            for image_tag_assoc in db_image_item.tags:
                 if image_tag_assoc.tag: 
                     tags_for_image_schema.append(
                         schemas.ImageTagInfo(
@@ -157,18 +164,18 @@ async def read_images(
                             name=image_tag_assoc.tag.name,
                             is_ai_generated=image_tag_assoc.is_ai_generated,
                             confidence=image_tag_assoc.confidence
+                        )
                     )
-                )
         
         image_data_for_response_schema = {
-            "id": db_image.id,
-            "file_path": db_image.file_path,
-            "original_filename": db_image.original_filename,
-            "capture_date": db_image.capture_date,
-            "camera_model": db_image.camera_model,
-            "thumbnail_path": db_image.thumbnail_path,
-            "date_added": db_image.date_added,
-            "rating": db_image.rating,
+            "id": db_image_item.id,
+            "file_path": db_image_item.file_path,
+            "original_filename": db_image_item.original_filename,
+            "capture_date": db_image_item.capture_date,
+            "camera_model": db_image_item.camera_model,
+            "thumbnail_path": db_image_item.thumbnail_path,
+            "date_added": db_image_item.date_added,
+            "rating": db_image_item.rating,
             "associated_tags": tags_for_image_schema
         }
         response_images.append(schemas.Image(**image_data_for_response_schema))

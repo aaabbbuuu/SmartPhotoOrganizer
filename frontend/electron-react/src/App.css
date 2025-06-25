@@ -170,3 +170,56 @@
 .star:hover ~ .star { 
   color: #f8d64e;
 }
+
+.filter-controls {
+  margin-top: 20px;
+  margin-bottom: 20px;
+  padding: 15px;
+  border: 1px solid #e0e0e0;
+  border-radius: 5px;
+  background-color: #f9f9f9;
+}
+.filter-controls h4 {
+  margin-top: 0;
+  margin-bottom: 10px;
+}
+.filter-row { /* Use this class for each row of filters for better layout */
+  margin-bottom: 10px;
+  display: flex;
+  flex-wrap: wrap; /* Allow wrapping if too many items */
+  align-items: center;
+  gap: 10px; /* Space between label and input, and between filter groups */
+}
+.filter-controls label { /* General label styling in filters */
+  font-weight: bold;
+  margin-right: 5px; /* Default right margin for labels */
+}
+.filter-controls input[type="date"],
+.filter-controls input[type="text"],
+.filter-controls select {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+.checkbox-group {
+  display: flex;
+  flex-direction: column; /* Stack checkboxes vertically for now */
+}
+.checkbox-label { /* For camera model checkboxes */
+    font-weight: normal;
+    margin-right: 15px; /* Space between checkbox items if they were inline */
+    display: block; /* Make each checkbox label take its own line */
+}
+.add-tag-button { /* Style for the add tag button */
+    padding: 5px 10px;
+    margin-left: 5px;
+    font-size: 0.9em;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+    background-color: #f0f0f0;
+    cursor: pointer;
+}
+.add-tag-button:hover {
+    background-color: #e0e0e0;
+}

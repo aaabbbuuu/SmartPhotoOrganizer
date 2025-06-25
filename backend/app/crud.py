@@ -1,6 +1,8 @@
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
+from sqlalchemy import and_, or_, func
 from . import models, schemas 
-from typing import List, Optional
+from typing import List, Optional, Union
+from datetime import datetime
 
 def get_image_by_path(db: Session, file_path: str) -> Optional[models.Image]:
     return db.query(models.Image).filter(models.Image.file_path == file_path).first()
@@ -14,17 +16,53 @@ def create_image(db: Session, image: schemas.ImageCreate) -> models.Image:
     db.refresh(db_image)
     return db_image
 
-def get_images(db: Session, skip: int = 0, limit: int = 100, sort_by: str = "capture_date", sort_order: str = "desc") -> List[models.Image]:
-    query = db.query(models.Image)
+def get_images(
+    db: Session, 
+    skip: int = 0, 
+    limit: int = 100, 
+    sort_by: str = "capture_date", 
+    sort_order: str = "desc",
+    date_start: Optional[datetime] = None,
+    date_end: Optional[datetime] = None,
+    camera_models: Optional[List[str]] = None,
+    tag_names: Optional[List[str]] = None, 
+    rating_min: Optional[int] = None
+) -> List[models.Image]:
+    
+    query = db.query(models.Image)\
+        .options(selectinload(models.Image.tags).selectinload(models.ImageTag.tag))
 
-    if hasattr(models.Image, sort_by):
-        column_to_sort = getattr(models.Image, sort_by)
-        if sort_order == "desc":
-            query = query.order_by(column_to_sort.desc().nullslast())
-        else:
-            query = query.order_by(column_to_sort.asc().nullslast())
+    # --- Apply Filters ---
+    filters = []
+    if date_start:
+        filters.append(models.Image.capture_date >= date_start)
+    if date_end:
+        filters.append(models.Image.capture_date <= date_end)
+    
+    if camera_models:
+        if isinstance(camera_models, list) and len(camera_models) > 0:
+            filters.append(models.Image.camera_model.in_(camera_models))
+    
+    if rating_min is not None: 
+        if 0 <= rating_min <= 5: 
+            filters.append(models.Image.rating >= rating_min)
+
+    if tag_names:
+        if isinstance(tag_names, list) and len(tag_names) > 0:
+            normalized_tag_names = [name.strip().lower() for name in tag_names]
+            query = query.join(models.Image.tags).join(models.ImageTag.tag)\
+                         .filter(models.Tag.name.in_(normalized_tag_names))\
+                         .group_by(models.Image.id) 
+
+    if filters: 
+        query = query.filter(and_(*filters))
+
+    # --- Apply Sorting ---
+    sort_column = getattr(models.Image, sort_by, models.Image.capture_date) # Default to capture_date if invalid sort_by
+    if sort_order == "desc":
+        query = query.order_by(sort_column.desc().nullslast())
     else:
-        query = query.order_by(models.Image.capture_date.desc().nullslast())
+        query = query.order_by(sort_column.asc().nullslast())
     
     return query.offset(skip).limit(limit).all()
 

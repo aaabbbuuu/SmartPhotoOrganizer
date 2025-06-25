@@ -22,6 +22,7 @@ const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
  * @property {string|null} [camera_model]
  * @property {string|null} [thumbnail_path]
  * @property {string} date_added
+ * @property {number} rating
  * @property {TagInfo[]} associated_tags
  */
 
@@ -33,15 +34,73 @@ function App() {
   const [scanStatus, setScanStatus] = useState(null);
   const [sortBy, setSortBy] = useState('capture_date');
   const [sortOrder, setSortOrder] = useState('desc');
+
+  // --- Filter States ---
+  const [filterDateStart, setFilterDateStart] = useState('');
+  const [filterDateEnd, setFilterDateEnd] = useState('');  
+  const [filterCameraModels, setFilterCameraModels] = useState([]);
+  const [availableCameraModels, setAvailableCameraModels] = useState([]);
+  const [filterTagNames, setFilterTagNames] = useState(''); 
+  const [filterRatingMin, setFilterRatingMin] = useState(0); 
   
   /** @type {[{id: number, name: string}[], React.Dispatch<React.SetStateAction<{id: number, name: string}[]>>]} */
-  const [allTags, setAllTags] = useState([]); // For autocomplete later
-
+  const [allTags, setAllTags] = useState([]);
   const [tagInputs, setTagInputs] = useState({}); 
 
   const handleTagInputChange = (photoId, value) => {
     setTagInputs(prev => ({ ...prev, [photoId]: value }));
   };
+
+  const fetchPhotos = useCallback(async () => {
+    setIsLoading(true);
+    setError(null);
+    
+    const params = {
+      sort_by: sortBy,
+      sort_order: sortOrder,
+      limit: 200, // Or a smaller number + pagination later
+    };
+
+    if (filterDateStart) {
+        try {
+            params.date_start = new Date(filterDateStart).toISOString();
+        } catch (e) { console.error("Invalid start date format"); }
+    }
+    if (filterDateEnd) {
+        try {
+            const endDate = new Date(filterDateEnd);
+            endDate.setHours(23, 59, 59, 999); 
+            params.date_end = endDate.toISOString();
+        } catch (e) { console.error("Invalid end date format"); }
+    }
+    if (filterCameraModels.length > 0) params.camera_models = filterCameraModels;
+    const trimmedTagNames = filterTagNames.trim();
+    if (trimmedTagNames) {
+        params.tag_names = trimmedTagNames.split(',').map(tag => tag.trim()).filter(tag => tag);
+    }
+    if (filterRatingMin > 0 && filterRatingMin <=5) params.rating_min = filterRatingMin;
+
+    try {
+      const response = await axios.get(`${API_BASE_URL}/api/photos/`, { params });
+      setPhotos(response.data);
+
+      if (response.data.length > 0) {
+          const uniqueCameras = [...new Set(response.data.map(p => p.camera_model).filter(Boolean))];
+          if (uniqueCameras.length !== availableCameraModels.length || !uniqueCameras.every(cam => availableCameraModels.includes(cam))) {
+            setAvailableCameraModels(uniqueCameras.sort());
+          }
+      } else if (Object.keys(params).length === 3) { 
+          setAvailableCameraModels([]); 
+      }
+
+    } catch (err) {
+      console.error("Error fetching photos:", err);
+      setError(`Failed to load photos. (${err.response?.data?.detail || err.message})`);
+      setPhotos([]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [sortBy, sortOrder, filterDateStart, filterDateEnd, filterCameraModels, filterTagNames, filterRatingMin, availableCameraModels]); 
 
   const handleRatePhoto = async (photoId, newRating) => {
     try {
@@ -58,27 +117,6 @@ function App() {
     }
   };
 
-  const fetchPhotos = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const response = await axios.get(`${API_BASE_URL}/api/photos/`, {
-        params: {
-          sort_by: sortBy,
-          sort_order: sortOrder,
-          limit: 200 
-        }
-      });
-      setPhotos(response.data);
-    } catch (err) {
-      console.error("Error fetching photos:", err);
-      setError(`Failed to load photos. (${err.message})`);
-      setPhotos([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [sortBy, sortOrder]);
-
   const fetchAllTags = useCallback(async () => {
     try {
       const response = await axios.get(`${API_BASE_URL}/api/tags/`);
@@ -87,7 +125,6 @@ function App() {
       console.error("Failed to fetch all tags:", err);
     }
   }, []);
-
 
   useEffect(() => {
     fetchPhotos();
@@ -148,13 +185,10 @@ function App() {
     } catch (err) {
       console.error(`Error adding tag to photo ${photoId}:`, err);
       setError(`Failed to add tag: ${err.response?.data?.detail || err.message}`);
-    } finally {
-      // setIsLoading(false);
     }
   };
 
   const handleRemoveTag = async (photoId, tagId) => {
-    // setIsLoading(true);
     try {
       await axios.delete(`${API_BASE_URL}/api/photos/images/${photoId}/tags/${tagId}`);
       fetchPhotos(); 
@@ -162,8 +196,6 @@ function App() {
     } catch (err) {
       console.error(`Error removing tag ${tagId} from photo ${photoId}:`, err);
       setError(`Failed to remove tag: ${err.response?.data?.detail || err.message}`);
-    } finally {
-      // setIsLoading(false);
     }
   };
 
@@ -177,8 +209,7 @@ function App() {
           className={`star ${starValue <= rating ? 'filled' : ''}`}
           onClick={() => onRate(photoId, starValue)}
           title={`Rate ${starValue} star${starValue > 1 ? 's' : ''}`}
-        >
-          {/* Using text stars, can be replaced with SVGs or icon font */}
+        >          
           {starValue <= rating ? '★' : '☆'}
         </span>
       ))}
@@ -203,6 +234,7 @@ function App() {
             <option value="date_added">Date Added</option>
             <option value="original_filename">Filename</option>
             <option value="camera_model">Camera Model</option>
+            <option value="rating">Rating</option> {/* Added rating sort */}
           </select>
           <label htmlFor="sort-order" style={{marginLeft: "10px"}}>Order: </label>
           <select id="sort-order" value={sortOrder} onChange={handleOrderChange} disabled={isLoading}>
@@ -210,6 +242,56 @@ function App() {
             <option value="asc">Ascending</option>
           </select>
         </div>
+      </div>
+
+      {/* --- Filter Controls UI --- */}
+      <div className="filter-controls">
+        <h4>Filters:</h4>
+        <div className="filter-row">
+          <label htmlFor="date-start">Date Start: </label>
+          <input id="date-start" type="date" value={filterDateStart} onChange={e => setFilterDateStart(e.target.value)} />
+          <label htmlFor="date-end" style={{marginLeft: "10px"}}> Date End: </label>
+          <input id="date-end" type="date" value={filterDateEnd} onChange={e => setFilterDateEnd(e.target.value)} />
+        </div>
+        <div className="filter-row">
+          <label htmlFor="min-rating">Min Rating: </label>
+          <select id="min-rating" value={filterRatingMin} onChange={e => setFilterRatingMin(parseInt(e.target.value, 10))}>
+            {[0, 1, 2, 3, 4, 5].map(r => <option key={r} value={r}>{r === 0 ? 'Any' : `${r}+ Stars`}</option>)}
+          </select>
+        </div>
+        <div className="filter-row">
+          <label htmlFor="filter-tags">Tags (comma-sep): </label>
+          <input 
+            id="filter-tags"
+            type="text" 
+            placeholder="e.g., beach, person" 
+            value={filterTagNames} 
+            onChange={e => setFilterTagNames(e.target.value)}
+            list="all-tags-list" 
+          />
+        </div>
+        {availableCameraModels.length > 0 && (
+          <div className="filter-row">
+            <label>Camera Model(s): </label>
+            <div className="checkbox-group">
+              {availableCameraModels.map(model => (
+                <label key={model} className="checkbox-label">
+                  <input 
+                    type="checkbox" 
+                    value={model}
+                    checked={filterCameraModels.includes(model)}
+                    onChange={e => {
+                      const { value, checked } = e.target;
+                      setFilterCameraModels(prev => 
+                        checked ? [...prev, value] : prev.filter(m => m !== value)
+                      );
+                    }}
+                  /> {model}
+                </label>
+              ))}
+            </div>
+          </div>
+        )}        
       </div>
       
       {scanStatus && <div className={`status-message ${error && !isLoading ? 'error-msg' : 'success'}`}>{scanStatus}</div>}
@@ -234,14 +316,12 @@ function App() {
                 <p><strong>Date:</strong> {formatDate(photo.capture_date)}</p>
                 <p><strong>Camera:</strong> {photo.camera_model || 'N/A'}</p>
                 
-                {/* Star Rating Display */}
                 <StarRating 
                   photoId={photo.id} 
-                  rating={photo.rating || 0} // Ensure photo.rating exists and has a default
+                  rating={photo.rating || 0} 
                   onRate={handleRatePhoto} 
                 />
                 
-                {/* Display Tags */}
                 {photo.associated_tags && photo.associated_tags.length > 0 && (
                   <div className="tags-display">
                     <strong>Tags: </strong>
@@ -264,7 +344,6 @@ function App() {
                   </div>
                 )}
 
-                {/* Add Tag Section */}
                 <div className="add-tag-section">
                   <input 
                     type="text" 
@@ -274,12 +353,10 @@ function App() {
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && e.target.value) {
                         handleAddTag(photo.id, e.target.value);
-                        // Input is cleared by handleAddTag via setTagInputs
                       }
                     }}
-                    list="all-tags-list" // For datalist autocomplete
+                    list="all-tags-list"
                   />
-                  {/* Datalist for basic autocomplete */}
                   {allTags.length > 0 && (
                     <datalist id="all-tags-list">
                       {allTags.map(tag => <option key={tag.id} value={tag.name} />)}
@@ -292,7 +369,7 @@ function App() {
                         handleAddTag(photo.id, tagName);
                       }
                     }}
-                    className="add-tag-button" // Simple button, style as needed
+                    className="add-tag-button"
                   >
                     Add
                   </button>
@@ -309,4 +386,3 @@ function App() {
 }
 
 export default App;
-// --- END OF FILE App.js ---
