@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, validator
 from typing import Optional, List
 from datetime import datetime
 
@@ -15,7 +15,17 @@ class Tag(TagBase):
         from_attributes = True 
 
 class AddTagRequest(BaseModel):
-    tag_name: str
+    tag_name: str = Field(..., min_length=1, max_length=50)
+    
+    @validator('tag_name')
+    def validate_tag_name(cls, v):
+        v = v.strip()
+        if not v:
+            raise ValueError('Tag name cannot be empty or only whitespace')
+        # Only allow alphanumeric, spaces, hyphens, and underscores
+        if not all(c.isalnum() or c in ' -_' for c in v):
+            raise ValueError('Tag name can only contain letters, numbers, spaces, hyphens, and underscores')
+        return v.lower()
 
 # --- Image Schemas ---
 class ImageBase(BaseModel):
@@ -24,7 +34,7 @@ class ImageBase(BaseModel):
     capture_date: Optional[datetime] = None
     camera_model: Optional[str] = None
     thumbnail_path: Optional[str] = None
-    rating: int = 0
+    rating: int = Field(default=0, ge=0, le=5)
 
 class ImageCreate(ImageBase):
     pass
@@ -50,7 +60,7 @@ class Image(ImageBase):
 
 
 class ScanFolderRequest(BaseModel):
-    folder_path: str
+    folder_path: str = Field(..., min_length=1)
 
 class ScanFolderResponse(BaseModel):
     new_images_added: int
@@ -60,4 +70,17 @@ class ScanFolderResponse(BaseModel):
     errors: List[str]
 
 class UpdateRatingRequest(BaseModel):
-    rating: int
+    rating: int = Field(..., ge=0, le=5, description="Rating must be between 0 and 5")
+
+# --- Pagination Schemas ---
+class PaginationMeta(BaseModel):
+    page: int
+    page_size: int
+    total_items: int
+    total_pages: int
+    has_next: bool
+    has_prev: bool
+
+class PaginatedImageResponse(BaseModel):
+    items: List[Image]
+    meta: PaginationMeta
