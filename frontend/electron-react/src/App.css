@@ -1,4 +1,4 @@
-/* App.css - Updated with new styles for pagination and loading states */
+/* App.css - Phase 4 with Albums */
 
 .App {
   text-align: center;
@@ -15,11 +15,41 @@
   border-radius: 10px;
   margin-bottom: 20px;
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
 }
 
 .app-header h1 {
   margin: 0;
   font-size: 2em;
+}
+
+/* View Switcher */
+.view-switcher {
+  display: flex;
+  gap: 10px;
+}
+
+.view-switcher button {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border: 2px solid transparent;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  transition: all 0.3s;
+}
+
+.view-switcher button:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.view-switcher button.active {
+  background: white;
+  color: #667eea;
+  border-color: white;
 }
 
 .controls {
@@ -31,6 +61,8 @@
   background: white;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .controls button {
@@ -53,6 +85,10 @@
 .controls button:disabled {
   background: #ccc;
   cursor: not-allowed;
+}
+
+.controls button.active {
+  background: #4caf50;
 }
 
 .controls select {
@@ -110,8 +146,7 @@
   transition: border-color 0.3s;
 }
 
-.filter-row input[type="date"]:focus,
-.filter-row input[type="text"]:focus,
+.filter-row input:focus,
 .filter-row select:focus {
   outline: none;
   border-color: #667eea;
@@ -131,13 +166,7 @@
   font-weight: normal;
 }
 
-.checkbox-label input[type="checkbox"] {
-  cursor: pointer;
-  width: 18px;
-  height: 18px;
-}
-
-/* Pagination Controls */
+/* Pagination */
 .pagination-controls {
   display: flex;
   justify-content: center;
@@ -169,7 +198,6 @@
 .pagination-controls button:disabled {
   background: #ccc;
   cursor: not-allowed;
-  transform: none;
 }
 
 .page-info {
@@ -219,11 +247,30 @@
   overflow: hidden;
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
 }
 
 .photo-item:hover {
   transform: translateY(-5px);
   box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+}
+
+.photo-item.selected {
+  border: 3px solid #4caf50;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.3);
+}
+
+.selection-checkbox {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 10;
+}
+
+.selection-checkbox input[type="checkbox"] {
+  width: 24px;
+  height: 24px;
+  cursor: pointer;
 }
 
 .photo-item img {
@@ -286,7 +333,7 @@
   opacity: 0.5;
 }
 
-/* Tags Display */
+/* Tags */
 .tags-display {
   margin: 10px 0;
   display: flex;
@@ -334,12 +381,6 @@
   opacity: 1;
 }
 
-.remove-tag-btn:disabled {
-  cursor: not-allowed;
-  opacity: 0.4;
-}
-
-/* Add Tag Section */
 .add-tag-section {
   display: flex;
   gap: 8px;
@@ -360,11 +401,6 @@
   border-color: #667eea;
 }
 
-.add-tag-section input:disabled {
-  background: #f5f5f5;
-  cursor: not-allowed;
-}
-
 .add-tag-button {
   background: #4caf50;
   color: white;
@@ -379,18 +415,307 @@
 
 .add-tag-button:hover:not(:disabled) {
   background: #45a049;
-  transform: translateY(-1px);
 }
 
 .add-tag-button:disabled {
   background: #ccc;
   cursor: not-allowed;
-  transform: none;
 }
 
-/* Responsive Design */
+/* Albums */
+.albums-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding: 20px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.albums-header h2 {
+  margin: 0;
+  color: #333;
+}
+
+.create-album-btn {
+  background: #4caf50;
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.create-album-btn:hover {
+  background: #45a049;
+  transform: translateY(-2px);
+}
+
+.albums-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 20px;
+}
+
+.album-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.album-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+}
+
+.album-cover {
+  width: 100%;
+  height: 200px;
+  background: #eee;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.album-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.no-cover {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 64px;
+  color: #999;
+}
+
+.album-info {
+  padding: 15px;
+}
+
+.album-info h3 {
+  margin: 0 0 10px 0;
+  color: #333;
+}
+
+.album-info p {
+  margin: 5px 0;
+  color: #666;
+  font-size: 14px;
+}
+
+.album-desc {
+  font-style: italic;
+  color: #888;
+}
+
+.album-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.album-actions button {
+  flex: 1;
+  padding: 8px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.album-actions button:first-child {
+  background: #667eea;
+  color: white;
+}
+
+.album-actions button:first-child:hover {
+  background: #5568d3;
+}
+
+.album-actions button.delete-btn {
+  background: #f44336;
+  color: white;
+}
+
+.album-actions button.delete-btn:hover {
+  background: #d32f2f;
+}
+
+.album-detail-header {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+  text-align: left;
+}
+
+.album-detail-header button {
+  background: #667eea;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin-bottom: 15px;
+  transition: all 0.3s;
+}
+
+.album-detail-header button:hover {
+  background: #5568d3;
+}
+
+.album-detail-header h2 {
+  margin: 10px 0;
+  color: #333;
+}
+
+.photo-count {
+  font-weight: 600;
+  color: #667eea;
+}
+
+.remove-from-album-btn {
+  width: 100%;
+  background: #f44336;
+  color: white;
+  border: none;
+  padding: 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  margin-top: 10px;
+  transition: all 0.3s;
+}
+
+.remove-from-album-btn:hover {
+  background: #d32f2f;
+}
+
+/* Modal */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: white;
+  padding: 30px;
+  border-radius: 12px;
+  min-width: 400px;
+  max-width: 90%;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+}
+
+.modal h3 {
+  margin-top: 0;
+  color: #333;
+}
+
+.modal input,
+.modal textarea {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  margin-bottom: 15px;
+  font-family: inherit;
+}
+
+.modal input:focus,
+.modal textarea:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.modal textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.modal-actions button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.modal-actions button:first-child {
+  background: #4caf50;
+  color: white;
+}
+
+.modal-actions button:first-child:hover {
+  background: #45a049;
+}
+
+.modal-actions button:last-child {
+  background: #ddd;
+  color: #333;
+}
+
+.modal-actions button:last-child:hover {
+  background: #ccc;
+}
+
+.album-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 400px;
+  overflow-y: auto;
+  margin-bottom: 20px;
+}
+
+.album-list-item {
+  padding: 15px;
+  background: #f5f5f5;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 16px;
+  transition: all 0.3s;
+}
+
+.album-list-item:hover {
+  background: #e3f2fd;
+  border-color: #667eea;
+}
+
+/* Responsive */
 @media (max-width: 768px) {
-  .photo-grid {
+  .photo-grid,
+  .albums-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 15px;
   }
@@ -400,13 +725,12 @@
     gap: 15px;
   }
   
-  .filter-row {
+  .app-header {
     flex-direction: column;
-    align-items: flex-start;
+    gap: 15px;
   }
   
-  .pagination-controls {
-    flex-direction: column;
-    gap: 10px;
+  .modal {
+    min-width: 90%;
   }
 }

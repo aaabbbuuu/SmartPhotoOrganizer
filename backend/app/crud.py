@@ -4,6 +4,10 @@ from . import models, schemas
 from typing import List, Optional
 from datetime import datetime
 
+# ============================================================================
+# IMAGE CRUD FUNCTIONS
+# ============================================================================
+
 def get_image_by_path(db: Session, file_path: str) -> Optional[models.Image]:
     """Get an image by its file path"""
     return db.query(models.Image).filter(models.Image.file_path == file_path).first()
@@ -25,13 +29,9 @@ def get_images_count(
     tag_names: Optional[List[str]] = None, 
     rating_min: Optional[int] = None
 ) -> int:
-    """
-    Get total count of images matching the filters.
-    Used for pagination metadata.
-    """
+    """Get total count of images matching the filters"""
     query = db.query(func.count(models.Image.id))
     
-    # --- Apply Filters ---
     filters = []
     if date_start:
         filters.append(models.Image.capture_date >= date_start)
@@ -70,13 +70,10 @@ def get_images(
     tag_names: Optional[List[str]] = None, 
     rating_min: Optional[int] = None
 ) -> List[models.Image]:
-    """
-    Get paginated list of images with optional filters and sorting
-    """
+    """Get paginated list of images with optional filters and sorting"""
     query = db.query(models.Image)\
         .options(selectinload(models.Image.tags).selectinload(models.ImageTag.tag))
 
-    # --- Apply Filters ---
     filters = []
     if date_start:
         filters.append(models.Image.capture_date >= date_start)
@@ -101,7 +98,6 @@ def get_images(
     if filters: 
         query = query.filter(and_(*filters))
 
-    # --- Apply Sorting ---
     sort_column = getattr(models.Image, sort_by, models.Image.capture_date)
     if sort_order == "desc":
         query = query.order_by(sort_column.desc().nullslast())
@@ -110,7 +106,10 @@ def get_images(
     
     return query.offset(skip).limit(limit).all()
 
-# --- Tag CRUD Functions ---
+# ============================================================================
+# TAG CRUD FUNCTIONS
+# ============================================================================
+
 def get_tag_by_name(db: Session, name: str) -> Optional[models.Tag]:
     """Get a tag by its name"""
     return db.query(models.Tag).filter(models.Tag.name == name).first()
@@ -137,49 +136,37 @@ def add_tag_to_image(
     is_ai_generated: bool = False, 
     confidence: Optional[float] = None
 ) -> Optional[models.ImageTag]:
-    """
-    Add a tag to an image. 
-    If tag already exists on image, update it based on confidence or manual override.
-    """
+    """Add a tag to an image"""
     db_image = db.query(models.Image).filter(models.Image.id == image_id).first()
     if not db_image:
         print(f"CRUD: Image with id {image_id} not found for adding tag.")
         return None
     
-    # Normalize tag name
     normalized_tag_name = tag_name.strip().lower()
     if not normalized_tag_name:
         raise ValueError("Tag name cannot be empty")
     
     db_tag = get_or_create_tag(db, tag_name=normalized_tag_name) 
     
-    # Check if this tag is already on this image
     existing_image_tag = db.query(models.ImageTag).filter_by(
         image_id=image_id, 
         tag_id=db_tag.id
     ).first()
     
     if existing_image_tag:
-        # Update logic: 
-        # - If new tag is AI with higher confidence, update
-        # - If new tag is manual, override AI tag
         if is_ai_generated and confidence is not None:
             if existing_image_tag.confidence is None or confidence > existing_image_tag.confidence:
                 existing_image_tag.confidence = confidence
                 existing_image_tag.is_ai_generated = True
                 db.commit()
                 db.refresh(existing_image_tag)
-                print(f"CRUD: Updated AI tag '{tag_name}' confidence on image {image_id}")
         elif not is_ai_generated and existing_image_tag.is_ai_generated:
-            # Manual tag overrides AI tag
             existing_image_tag.is_ai_generated = False
             existing_image_tag.confidence = None 
             db.commit()
             db.refresh(existing_image_tag)
-            print(f"CRUD: Converted AI tag to manual tag '{tag_name}' on image {image_id}")
         return existing_image_tag
 
-    # Create new image-tag association
     db_image_tag = models.ImageTag(
         image_id=image_id, 
         tag_id=db_tag.id, 
@@ -193,10 +180,7 @@ def add_tag_to_image(
     return db_image_tag
 
 def remove_tag_from_image(db: Session, image_id: int, tag_id: int) -> bool:
-    """
-    Remove a tag from an image.
-    Returns True if successful, False if tag was not found on image.
-    """
+    """Remove a tag from an image"""
     db_image_tag = db.query(models.ImageTag).filter_by(
         image_id=image_id, 
         tag_id=tag_id
@@ -205,18 +189,6 @@ def remove_tag_from_image(db: Session, image_id: int, tag_id: int) -> bool:
     if db_image_tag:
         db.delete(db_image_tag)
         db.commit()
-        print(f"CRUD: Removed tag {tag_id} from image {image_id}")
-        
-        # Optional: Clean up orphaned tags (tags not used by any image)
-        # Uncomment if you want automatic cleanup
-        # tag_associations_count = db.query(models.ImageTag).filter_by(tag_id=tag_id).count()
-        # if tag_associations_count == 0:
-        #     db_tag = db.query(models.Tag).filter_by(id=tag_id).first()
-        #     if db_tag:
-        #         db.delete(db_tag)
-        #         db.commit()
-        #         print(f"CRUD: Deleted orphaned tag {tag_id}")
-        
         return True
     return False
 
@@ -225,12 +197,8 @@ def get_all_tags(db: Session) -> List[models.Tag]:
     return db.query(models.Tag).order_by(models.Tag.name).all()
 
 def update_image_rating(db: Session, image_id: int, rating: int) -> Optional[models.Image]:
-    """
-    Update the rating of an image.
-    Returns the updated image or None if invalid.
-    """
+    """Update the rating of an image"""
     if not (0 <= rating <= 5):
-        print(f"CRUD: Invalid rating value {rating} for image {image_id}.")
         return None
         
     db_image = db.query(models.Image).filter(models.Image.id == image_id).first()
@@ -238,6 +206,150 @@ def update_image_rating(db: Session, image_id: int, rating: int) -> Optional[mod
         db_image.rating = rating
         db.commit()
         db.refresh(db_image)
-        print(f"CRUD: Updated rating to {rating} for image {image_id}")
         return db_image
     return None
+
+# ============================================================================
+# ALBUM CRUD FUNCTIONS
+# ============================================================================
+
+def create_album(db: Session, album: schemas.AlbumCreate) -> models.Album:
+    """Create a new album"""
+    db_album = models.Album(
+        name=album.name,
+        description=album.description,
+        cover_image_id=album.cover_image_id
+    )
+    db.add(db_album)
+    db.commit()
+    db.refresh(db_album)
+    return db_album
+
+def get_album_by_id(db: Session, album_id: int) -> Optional[models.Album]:
+    """Get an album by ID with eager loading of relationships"""
+    return db.query(models.Album)\
+        .options(
+            selectinload(models.Album.photos).selectinload(models.AlbumPhoto.image),
+            selectinload(models.Album.cover_image)
+        )\
+        .filter(models.Album.id == album_id)\
+        .first()
+
+def get_albums(
+    db: Session,
+    skip: int = 0,
+    limit: int = 50
+) -> List[models.Album]:
+    """Get paginated list of albums"""
+    return db.query(models.Album)\
+        .options(selectinload(models.Album.cover_image))\
+        .order_by(models.Album.date_modified.desc())\
+        .offset(skip)\
+        .limit(limit)\
+        .all()
+
+def get_albums_count(db: Session) -> int:
+    """Get total count of albums"""
+    return db.query(func.count(models.Album.id)).scalar()
+
+def update_album(
+    db: Session, 
+    album_id: int, 
+    album_update: schemas.AlbumUpdate
+) -> Optional[models.Album]:
+    """Update an album"""
+    db_album = db.query(models.Album).filter(models.Album.id == album_id).first()
+    if not db_album:
+        return None
+    
+    update_data = album_update.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(db_album, field, value)
+    
+    db_album.date_modified = datetime.utcnow()
+    db.commit()
+    db.refresh(db_album)
+    return db_album
+
+def delete_album(db: Session, album_id: int) -> bool:
+    """Delete an album"""
+    db_album = db.query(models.Album).filter(models.Album.id == album_id).first()
+    if not db_album:
+        return False
+    
+    db.delete(db_album)
+    db.commit()
+    return True
+
+def add_photos_to_album(
+    db: Session, 
+    album_id: int, 
+    image_ids: List[int]
+) -> int:
+    """Add multiple photos to an album. Returns count of photos added."""
+    db_album = db.query(models.Album).filter(models.Album.id == album_id).first()
+    if not db_album:
+        return 0
+    
+    added_count = 0
+    for image_id in image_ids:
+        # Check if image exists
+        db_image = db.query(models.Image).filter(models.Image.id == image_id).first()
+        if not db_image:
+            continue
+        
+        # Check if already in album
+        existing = db.query(models.AlbumPhoto).filter_by(
+            album_id=album_id,
+            image_id=image_id
+        ).first()
+        
+        if existing:
+            continue
+        
+        # Add to album
+        album_photo = models.AlbumPhoto(
+            album_id=album_id,
+            image_id=image_id,
+            display_order=added_count
+        )
+        db.add(album_photo)
+        added_count += 1
+    
+    if added_count > 0:
+        db_album.date_modified = datetime.utcnow()
+        db.commit()
+    
+    return added_count
+
+def remove_photos_from_album(
+    db: Session,
+    album_id: int,
+    image_ids: List[int]
+) -> int:
+    """Remove multiple photos from an album. Returns count of photos removed."""
+    removed_count = 0
+    
+    for image_id in image_ids:
+        album_photo = db.query(models.AlbumPhoto).filter_by(
+            album_id=album_id,
+            image_id=image_id
+        ).first()
+        
+        if album_photo:
+            db.delete(album_photo)
+            removed_count += 1
+    
+    if removed_count > 0:
+        db_album = db.query(models.Album).filter(models.Album.id == album_id).first()
+        if db_album:
+            db_album.date_modified = datetime.utcnow()
+        db.commit()
+    
+    return removed_count
+
+def get_album_photo_count(db: Session, album_id: int) -> int:
+    """Get count of photos in an album"""
+    return db.query(func.count(models.AlbumPhoto.image_id))\
+        .filter(models.AlbumPhoto.album_id == album_id)\
+        .scalar()

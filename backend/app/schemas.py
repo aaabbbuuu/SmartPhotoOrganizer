@@ -22,7 +22,6 @@ class AddTagRequest(BaseModel):
         v = v.strip()
         if not v:
             raise ValueError('Tag name cannot be empty or only whitespace')
-        # Only allow alphanumeric, spaces, hyphens, and underscores
         if not all(c.isalnum() or c in ' -_' for c in v):
             raise ValueError('Tag name can only contain letters, numbers, spaces, hyphens, and underscores')
         return v.lower()
@@ -47,6 +46,17 @@ class ImageTagInfo(BaseModel):
     is_ai_generated: bool
     confidence: Optional[float] = None
 
+    class Config:
+        from_attributes = True
+
+class ImageSimple(BaseModel):
+    """Simplified image schema for album listings"""
+    id: int
+    file_path: str
+    original_filename: Optional[str] = None
+    thumbnail_path: Optional[str] = None
+    rating: int = 0
+    
     class Config:
         from_attributes = True
         
@@ -83,4 +93,55 @@ class PaginationMeta(BaseModel):
 
 class PaginatedImageResponse(BaseModel):
     items: List[Image]
+    meta: PaginationMeta
+
+# --- Album Schemas ---
+class AlbumBase(BaseModel):
+    name: str = Field(..., min_length=1, max_length=100)
+    description: Optional[str] = Field(None, max_length=500)
+    cover_image_id: Optional[int] = None
+
+class AlbumCreate(AlbumBase):
+    pass
+
+class AlbumUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=100)
+    description: Optional[str] = Field(None, max_length=500)
+    cover_image_id: Optional[int] = None
+
+class AlbumPhotoInfo(BaseModel):
+    """Info about a photo in an album"""
+    image_id: int
+    date_added: datetime
+    display_order: int
+    image: ImageSimple
+    
+    class Config:
+        from_attributes = True
+
+class Album(AlbumBase):
+    id: int
+    date_created: datetime
+    date_modified: datetime
+    photo_count: int = 0
+    cover_image: Optional[ImageSimple] = None
+    
+    class Config:
+        from_attributes = True
+
+class AlbumDetail(Album):
+    """Detailed album with photos"""
+    photos: List[AlbumPhotoInfo] = []
+    
+    class Config:
+        from_attributes = True
+
+class AddPhotosToAlbumRequest(BaseModel):
+    image_ids: List[int] = Field(..., min_items=1)
+
+class RemovePhotosFromAlbumRequest(BaseModel):
+    image_ids: List[int] = Field(..., min_items=1)
+
+class PaginatedAlbumResponse(BaseModel):
+    items: List[Album]
     meta: PaginationMeta
