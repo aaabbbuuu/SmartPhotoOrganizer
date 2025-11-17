@@ -26,14 +26,14 @@ A desktop application for photographers and creatives to organize, tag, rate, an
 - Background image classification
 - Store and display AI-generated tags
 
----
-
-## 🚀 Upcoming Features
-
-### Phase 3: Manual Tagging & Rating
+## ✅ Phase 3: Manual Tagging & Rating
 - Manual tag management
 - Star rating system
 - Advanced filtering UI (date, camera, rating)
+
+---
+
+## 🚀 Upcoming Features
 
 ### Phase 4: Album Management
 - Create and view photo albums
