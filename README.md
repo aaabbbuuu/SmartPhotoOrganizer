@@ -43,6 +43,19 @@ A desktop application for photographers and creatives to organize, tag, rate, an
 - View switcher between Photos and Albums
 - Album metadata (name, description, photo count)
 
+## ✅ Phase 5: Export System & Bulk Operations - Completed
+- Export photos to ZIP or folder with quality presets
+- Export selected photos or entire albums
+- Real-time progress tracking with percentage display
+- Metadata JSON included in all exports
+- Bulk delete multiple photos (up to 100 at once)
+- Bulk rate multiple photos with one click
+- Bulk tag multiple photos simultaneously
+- Select all / Deselect all functionality
+- Background processing for non-blocking exports
+- Automatic download on export completion
+- 24-hour retention with auto-cleanup
+
 ## ✅ Performance & Quality Improvements - Completed
 - Pagination for large photo libraries (50 photos per page)
 - Debounced filter inputs (reduced API calls by 90%)
@@ -56,19 +69,17 @@ A desktop application for photographers and creatives to organize, tag, rate, an
 
 ## 🚀 Upcoming Features
 
-### Phase 5: Social Integration & Export
-- OAuth integration with Instagram/Flickr
-- Export album flow
-- Share albums with external services
-- Batch export functionality
-
-### Phase 6: Final Polish
-- Performance optimization for 10,000+ photos
-- Advanced search with boolean operators
-- Keyboard shortcuts and accessibility improvements
-- Cross-platform packaging (Windows, macOS, Linux)
+### Phase 6: Final Polish & Advanced Features
+- Advanced search with boolean operators and saved searches
+- Keyboard shortcuts for power users
 - Drag-and-drop photo organization
-- Bulk operations (delete, move, tag multiple photos)
+- Performance optimization for 10,000+ photos
+- Cross-platform packaging (Windows, macOS, Linux)
+- Duplicate photo detection
+- Photo editing capabilities (crop, rotate, filters)
+- Timeline view of photos
+- Map view for geotagged photos
+- Slideshow mode
 
 ---
 
@@ -136,6 +147,21 @@ npm run electron:dev  # Launch Electron app
 - 🗑️ Remove photos from albums
 - 📊 Photo count tracking
 
+### Export & Sharing
+- 📦 Export to ZIP archive or folder structure
+- 🎨 Quality presets (Original, High, Medium, Low)
+- 📋 Metadata JSON included in exports
+- 📊 Real-time progress tracking
+- ⏬ Automatic download on completion
+- 🕒 Export entire albums or selected photos
+
+### Bulk Operations
+- 🗑️ Delete multiple photos at once (up to 100)
+- ⭐ Rate multiple photos simultaneously
+- 🏷️ Tag multiple photos in one operation
+- ☑️ Select all / Deselect all controls
+- ⚡ Fast batch processing
+
 ### User Experience
 - ⚡ Fast pagination (50 photos per page)
 - 🔄 Debounced inputs (smooth filtering)
@@ -143,6 +169,41 @@ npm run electron:dev  # Launch Electron app
 - ❌ Clear error messages
 - 💾 Auto-save for all changes
 - 🎨 Modern, intuitive UI
+- 📊 Real-time progress tracking
+
+---
+
+## 🎯 API Endpoints
+
+### Photos
+- `GET /api/photos/` - List photos with pagination and filters
+- `POST /api/photos/scan-folder` - Scan folder for images
+- `POST /api/photos/images/{id}/rate` - Rate a photo
+- `POST /api/photos/images/{id}/tags` - Add tag to photo
+- `DELETE /api/photos/images/{id}/tags/{tag_id}` - Remove tag
+
+### Albums
+- `GET /api/albums/` - List all albums
+- `POST /api/albums/` - Create new album
+- `GET /api/albums/{id}` - Get album details
+- `PUT /api/albums/{id}` - Update album
+- `DELETE /api/albums/{id}` - Delete album
+- `POST /api/albums/{id}/photos` - Add photos to album
+- `DELETE /api/albums/{id}/photos` - Remove photos from album
+
+### Export
+- `POST /api/export/` - Create export job
+- `GET /api/export/jobs/{job_id}` - Check export status
+- `GET /api/export/download/{job_id}` - Download export
+- `DELETE /api/export/jobs/{job_id}` - Delete export
+
+### Bulk Operations
+- `POST /api/bulk/delete` - Delete multiple photos
+- `POST /api/bulk/tag` - Tag multiple photos
+- `POST /api/bulk/rate` - Rate multiple photos
+
+### Tags
+- `GET /api/tags/` - List all tags
 
 ---
 
@@ -155,3 +216,12 @@ npm run electron:dev  # Launch Electron app
 ## 📝 License
 
 MIT License - Feel free to use this project for personal or commercial purposes.
+
+---
+
+## 🙏 Acknowledgments
+
+- TensorFlow & TensorFlow Hub for AI capabilities
+- FastAPI for the excellent Python web framework
+- Electron for cross-platform desktop support
+- React for the modern UI framework

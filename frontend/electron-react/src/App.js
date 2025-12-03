@@ -14,10 +14,7 @@ function useDebounce(value, delay) {
 }
 
 function App() {
-  // View state
-  const [currentView, setCurrentView] = useState('photos'); // 'photos' or 'albums'
-  
-  // Photos state
+  const [currentView, setCurrentView] = useState('photos');
   const [photos, setPhotos] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -29,7 +26,6 @@ function App() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
-  // Filter States
   const [filterDateStart, setFilterDateStart] = useState('');
   const [filterDateEnd, setFilterDateEnd] = useState('');  
   const [filterCameraModels, setFilterCameraModels] = useState([]);
@@ -42,7 +38,6 @@ function App() {
   const [tagLoading, setTagLoading] = useState({});
   const debouncedTagNames = useDebounce(filterTagNames, 500);
 
-  // Albums state
   const [albums, setAlbums] = useState([]);
   const [selectedAlbum, setSelectedAlbum] = useState(null);
   const [albumPhotos, setAlbumPhotos] = useState([]);
@@ -52,10 +47,17 @@ function App() {
   const [newAlbumDescription, setNewAlbumDescription] = useState('');
   const [editAlbumData, setEditAlbumData] = useState(null);
   
-  // Selection state for adding to albums
   const [selectedPhotoIds, setSelectedPhotoIds] = useState([]);
   const [selectionMode, setSelectionMode] = useState(false);
   const [showAddToAlbumModal, setShowAddToAlbumModal] = useState(false);
+
+  // Phase 5: Export and Bulk Operations
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [exportFormat, setExportFormat] = useState('zip');
+  const [exportQuality, setExportQuality] = useState('high');
+  const [exportJobId, setExportJobId] = useState(null);
+  const [exportProgress, setExportProgress] = useState(null);
+  const [showBulkActions, setShowBulkActions] = useState(false);
 
   const handleTagInputChange = (photoId, value) => {
     setTagInputs(prev => ({ ...prev, [photoId]: value }));
@@ -73,16 +75,15 @@ function App() {
     };
 
     if (filterDateStart) {
-      try {
-        params.date_start = new Date(filterDateStart).toISOString();
-      } catch (e) { console.error("Invalid start date format"); }
+      try { params.date_start = new Date(filterDateStart).toISOString(); } 
+      catch (e) { console.error("Invalid start date"); }
     }
     if (filterDateEnd) {
       try {
         const endDate = new Date(filterDateEnd);
         endDate.setHours(23, 59, 59, 999); 
         params.date_end = endDate.toISOString();
-      } catch (e) { console.error("Invalid end date format"); }
+      } catch (e) { console.error("Invalid end date"); }
     }
     if (filterCameraModels.length > 0) params.camera_models = filterCameraModels;
     
@@ -95,7 +96,6 @@ function App() {
 
     try {
       const response = await axios.get(`${API_BASE_URL}/api/photos/`, { params });
-      
       if (response.data.items) {
         setPhotos(response.data.items);
         setTotalPages(response.data.meta.total_pages);
@@ -105,9 +105,7 @@ function App() {
       }
 
       if (response.data.items && response.data.items.length > 0) {
-        const uniqueCameras = [...new Set(
-          response.data.items.map(p => p.camera_model).filter(Boolean)
-        )];
+        const uniqueCameras = [...new Set(response.data.items.map(p => p.camera_model).filter(Boolean))];
         setAvailableCameraModels(uniqueCameras.sort());
       }
     } catch (err) {
@@ -126,7 +124,6 @@ function App() {
       setAlbums(response.data.items || response.data);
     } catch (err) {
       console.error("Failed to fetch albums:", err);
-      setError("Failed to load albums");
     }
   }, []);
 
@@ -144,16 +141,10 @@ function App() {
   const handleRatePhoto = async (photoId, newRating) => {
     setRatingLoading(prev => ({ ...prev, [photoId]: true }));
     try {
-      const response = await axios.post(
-        `${API_BASE_URL}/api/photos/images/${photoId}/rate`, 
-        { rating: newRating }
-      );
-      setPhotos(prevPhotos => 
-        prevPhotos.map(p => p.id === photoId ? response.data : p)
-      );
+      const response = await axios.post(`${API_BASE_URL}/api/photos/images/${photoId}/rate`, { rating: newRating });
+      setPhotos(prevPhotos => prevPhotos.map(p => p.id === photoId ? response.data : p));
       setError(null); 
     } catch (err) {
-      console.error(`Error rating photo ${photoId}:`, err);
       setError(`Failed to rate photo: ${err.response?.data?.detail || err.message}`);
     } finally {
       setRatingLoading(prev => ({ ...prev, [photoId]: false }));
@@ -170,11 +161,8 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (currentView === 'photos') {
-      fetchPhotos();
-    } else {
-      fetchAlbums();
-    }
+    if (currentView === 'photos') fetchPhotos();
+    else fetchAlbums();
   }, [currentView, fetchPhotos, fetchAlbums]); 
 
   useEffect(() => {
@@ -188,15 +176,10 @@ function App() {
         if (folderPath) {
           setIsLoading(true);
           setError(null);
-          setScanStatus('Scanning folder... AI tagging runs in background.');
+          setScanStatus('Scanning folder...');
           try {
-            const response = await axios.post(
-              `${API_BASE_URL}/api/photos/scan-folder`, 
-              { folder_path: folderPath }
-            );
-            setScanStatus(
-              `Scan complete: ${response.data.new_images_added} new images added.`
-            );
+            const response = await axios.post(`${API_BASE_URL}/api/photos/scan-folder`, { folder_path: folderPath });
+            setScanStatus(`Scan complete: ${response.data.new_images_added} new images added.`);
             setCurrentPage(1);
             fetchPhotos(); 
             fetchAllTags(); 
@@ -213,33 +196,13 @@ function App() {
     }
   };
 
-  const handleSortChange = (e) => {
-    setSortBy(e.target.value);
-    setCurrentPage(1);
-  };
-
-  const handleOrderChange = (e) => {
-    setSortOrder(e.target.value);
-    setCurrentPage(1);
-  };
-  
-  const formatDate = (dateString) => {
-    if (!dateString) return 'N/A';
-    try {
-      return new Date(dateString).toLocaleString();
-    } catch (e) { return 'Invalid Date'; }
-  };
-
   const handleAddTag = async (photoId, tagName) => {
     const trimmedTagName = tagName.trim();
     if (!trimmedTagName) return;
     
     setTagLoading(prev => ({ ...prev, [photoId]: true }));
     try {
-      await axios.post(
-        `${API_BASE_URL}/api/photos/images/${photoId}/tags`, 
-        { tag_name: trimmedTagName }
-      );
+      await axios.post(`${API_BASE_URL}/api/photos/images/${photoId}/tags`, { tag_name: trimmedTagName });
       fetchPhotos(); 
       fetchAllTags(); 
       setTagInputs(prev => ({ ...prev, [photoId]: '' })); 
@@ -270,12 +233,8 @@ function App() {
       setError("Album name is required");
       return;
     }
-
     try {
-      await axios.post(`${API_BASE_URL}/api/albums/`, {
-        name: newAlbumName,
-        description: newAlbumDescription
-      });
+      await axios.post(`${API_BASE_URL}/api/albums/`, { name: newAlbumName, description: newAlbumDescription });
       setNewAlbumName('');
       setNewAlbumDescription('');
       setShowCreateAlbum(false);
@@ -291,7 +250,6 @@ function App() {
       setError("Album name is required");
       return;
     }
-
     try {
       await axios.put(`${API_BASE_URL}/api/albums/${editAlbumData.id}`, {
         name: editAlbumData.name,
@@ -310,8 +268,7 @@ function App() {
   };
 
   const handleDeleteAlbum = async (albumId) => {
-    if (!window.confirm("Are you sure you want to delete this album?")) return;
-
+    if (!window.confirm("Delete this album?")) return;
     try {
       await axios.delete(`${API_BASE_URL}/api/albums/${albumId}`);
       if (selectedAlbum && selectedAlbum.id === albumId) {
@@ -327,18 +284,13 @@ function App() {
 
   const handleAddPhotosToAlbum = async (albumId) => {
     if (selectedPhotoIds.length === 0) return;
-
     try {
-      await axios.post(`${API_BASE_URL}/api/albums/${albumId}/photos`, {
-        image_ids: selectedPhotoIds
-      });
+      await axios.post(`${API_BASE_URL}/api/albums/${albumId}/photos`, { image_ids: selectedPhotoIds });
       setSelectedPhotoIds([]);
       setSelectionMode(false);
       setShowAddToAlbumModal(false);
       fetchAlbums();
-      if (selectedAlbum && selectedAlbum.id === albumId) {
-        fetchAlbumDetails(albumId);
-      }
+      if (selectedAlbum && selectedAlbum.id === albumId) fetchAlbumDetails(albumId);
       setError(null);
     } catch (err) {
       setError(`Failed to add photos: ${err.response?.data?.detail || err.message}`);
@@ -347,9 +299,7 @@ function App() {
 
   const handleRemovePhotoFromAlbum = async (albumId, photoId) => {
     try {
-      await axios.delete(`${API_BASE_URL}/api/albums/${albumId}/photos`, {
-        data: { image_ids: [photoId] }
-      });
+      await axios.delete(`${API_BASE_URL}/api/albums/${albumId}/photos`, { data: { image_ids: [photoId] } });
       fetchAlbumDetails(albumId);
       fetchAlbums();
       setError(null);
@@ -358,12 +308,131 @@ function App() {
     }
   };
 
+  // Phase 5: Export Functions
+  const handleExport = async () => {
+    if (selectedPhotoIds.length === 0 && !selectedAlbum) {
+      setError("No photos selected for export");
+      return;
+    }
+
+    try {
+      const exportData = {
+        export_format: exportFormat,
+        quality: exportQuality,
+        include_metadata: true
+      };
+
+      if (selectedAlbum) {
+        exportData.album_id = selectedAlbum.id;
+      } else {
+        exportData.image_ids = selectedPhotoIds;
+      }
+
+      const response = await axios.post(`${API_BASE_URL}/api/export/`, exportData);
+      setExportJobId(response.data.job_id);
+      setShowExportModal(false);
+      
+      // Poll for export status
+      pollExportStatus(response.data.job_id);
+    } catch (err) {
+      setError(`Export failed: ${err.response?.data?.detail || err.message}`);
+    }
+  };
+
+  const pollExportStatus = async (jobId) => {
+    const pollInterval = setInterval(async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/api/export/jobs/${jobId}`);
+        setExportProgress(response.data);
+
+        if (response.data.status === 'completed') {
+          clearInterval(pollInterval);
+          // Trigger download
+          window.location.href = `${API_BASE_URL}/api/export/download/${jobId}`;
+          setTimeout(() => {
+            setExportJobId(null);
+            setExportProgress(null);
+          }, 3000);
+        } else if (response.data.status === 'failed') {
+          clearInterval(pollInterval);
+          setError(`Export failed: ${response.data.error_message}`);
+          setExportJobId(null);
+          setExportProgress(null);
+        }
+      } catch (err) {
+        clearInterval(pollInterval);
+        setError('Failed to check export status');
+      }
+    }, 1000);
+  };
+
+  // Bulk Operations
+  const handleBulkDelete = async () => {
+    if (selectedPhotoIds.length === 0) return;
+    if (!window.confirm(`Delete ${selectedPhotoIds.length} photos? This cannot be undone.`)) return;
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/bulk/delete`, { image_ids: selectedPhotoIds });
+      setSelectedPhotoIds([]);
+      setSelectionMode(false);
+      fetchPhotos();
+      setError(null);
+      setScanStatus(`Deleted ${response.data.deleted_count} photos`);
+    } catch (err) {
+      setError(`Bulk delete failed: ${err.response?.data?.detail || err.message}`);
+    }
+  };
+
+  const handleBulkRate = async (rating) => {
+    if (selectedPhotoIds.length === 0) return;
+
+    try {
+      await axios.post(`${API_BASE_URL}/api/bulk/rate`, {
+        image_ids: selectedPhotoIds,
+        rating: rating
+      });
+      fetchPhotos();
+      setError(null);
+      setScanStatus(`Rated ${selectedPhotoIds.length} photos with ${rating} stars`);
+    } catch (err) {
+      setError(`Bulk rating failed: ${err.response?.data?.detail || err.message}`);
+    }
+  };
+
+  const handleBulkTag = async () => {
+    if (selectedPhotoIds.length === 0) return;
+    const tagNames = prompt("Enter tags (comma-separated):");
+    if (!tagNames) return;
+
+    const tags = tagNames.split(',').map(t => t.trim()).filter(t => t);
+    if (tags.length === 0) return;
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/api/bulk/tag`, {
+        image_ids: selectedPhotoIds,
+        tag_names: tags
+      });
+      fetchPhotos();
+      fetchAllTags();
+      setError(null);
+      setScanStatus(`Added tags to ${response.data.success_count} photos`);
+    } catch (err) {
+      setError(`Bulk tagging failed: ${err.response?.data?.detail || err.message}`);
+    }
+  };
+
   const togglePhotoSelection = (photoId) => {
     setSelectedPhotoIds(prev => 
-      prev.includes(photoId) 
-        ? prev.filter(id => id !== photoId)
-        : [...prev, photoId]
+      prev.includes(photoId) ? prev.filter(id => id !== photoId) : [...prev, photoId]
     );
+  };
+
+  const selectAllPhotos = () => {
+    setSelectedPhotoIds(photos.map(p => p.id));
+  };
+
+  const deselectAllPhotos = () => {
+    setSelectedPhotoIds([]);
   };
 
   useEffect(() => {
@@ -399,145 +468,93 @@ function App() {
     if (newPage >= 1 && newPage <= totalPages) setCurrentPage(newPage);
   };
 
-  const handleFilterChange = () => setCurrentPage(1);
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    try { return new Date(dateString).toLocaleString(); } 
+    catch (e) { return 'Invalid Date'; }
+  };
 
   return (
     <div className="App">
       <header className="app-header">
         <h1>Smart Photo Organizer</h1>
         <div className="view-switcher">
-          <button 
-            className={currentView === 'photos' ? 'active' : ''}
-            onClick={() => setCurrentView('photos')}
-          >
+          <button className={currentView === 'photos' ? 'active' : ''} onClick={() => setCurrentView('photos')}>
             📸 Photos
           </button>
-          <button 
-            className={currentView === 'albums' ? 'active' : ''}
-            onClick={() => setCurrentView('albums')}
-          >
+          <button className={currentView === 'albums' ? 'active' : ''} onClick={() => setCurrentView('albums')}>
             📁 Albums
           </button>
         </div>
       </header>
 
-      {/* Photos View */}
       {currentView === 'photos' && (
         <>
           <div className="controls">
             <button onClick={handleSelectFolder} disabled={isLoading}>
-              {isLoading && scanStatus ? 'Processing...' : 'Select Photo Folder to Scan'}
+              {isLoading && scanStatus ? 'Processing...' : 'Select Folder'}
             </button>
-            <button 
-              onClick={() => setSelectionMode(!selectionMode)}
-              className={selectionMode ? 'active' : ''}
-            >
+            <button onClick={() => setSelectionMode(!selectionMode)} className={selectionMode ? 'active' : ''}>
               {selectionMode ? '✓ Selection Mode' : 'Select Photos'}
             </button>
-            {selectionMode && selectedPhotoIds.length > 0 && (
-              <button onClick={() => setShowAddToAlbumModal(true)}>
-                Add {selectedPhotoIds.length} to Album
-              </button>
+            {selectionMode && (
+              <>
+                <button onClick={selectAllPhotos}>Select All</button>
+                <button onClick={deselectAllPhotos}>Deselect All</button>
+                {selectedPhotoIds.length > 0 && (
+                  <>
+                    <button onClick={() => setShowAddToAlbumModal(true)}>Add to Album</button>
+                    <button onClick={() => setShowExportModal(true)}>Export ({selectedPhotoIds.length})</button>
+                    <button onClick={() => setShowBulkActions(!showBulkActions)}>Bulk Actions ▼</button>
+                  </>
+                )}
+              </>
             )}
             <div>
-              <label htmlFor="sort-by">Sort By: </label>
-              <select id="sort-by" value={sortBy} onChange={handleSortChange} disabled={isLoading}>
+              <select value={sortBy} onChange={e => { setSortBy(e.target.value); setCurrentPage(1); }}>
                 <option value="capture_date">Capture Date</option>
                 <option value="date_added">Date Added</option>
                 <option value="original_filename">Filename</option>
-                <option value="camera_model">Camera Model</option>
+                <option value="camera_model">Camera</option>
                 <option value="rating">Rating</option>
               </select>
-              <label htmlFor="sort-order" style={{marginLeft: "10px"}}>Order: </label>
-              <select id="sort-order" value={sortOrder} onChange={handleOrderChange} disabled={isLoading}>
+              <select value={sortOrder} onChange={e => { setSortOrder(e.target.value); setCurrentPage(1); }}>
                 <option value="desc">Descending</option>
                 <option value="asc">Ascending</option>
               </select>
             </div>
           </div>
 
-          <div className="filter-controls">
-            <h4>Filters:</h4>
-            <div className="filter-row">
-              <label htmlFor="date-start">Date Start: </label>
-              <input 
-                id="date-start" 
-                type="date" 
-                value={filterDateStart} 
-                onChange={e => { setFilterDateStart(e.target.value); handleFilterChange(); }} 
-              />
-              <label htmlFor="date-end" style={{marginLeft: "10px"}}> Date End: </label>
-              <input 
-                id="date-end" 
-                type="date" 
-                value={filterDateEnd} 
-                onChange={e => { setFilterDateEnd(e.target.value); handleFilterChange(); }} 
-              />
+          {showBulkActions && selectedPhotoIds.length > 0 && (
+            <div className="bulk-actions-panel">
+              <button onClick={() => handleBulkRate(5)}>⭐ Rate 5 Stars</button>
+              <button onClick={() => handleBulkRate(4)}>⭐ Rate 4 Stars</button>
+              <button onClick={() => handleBulkRate(3)}>⭐ Rate 3 Stars</button>
+              <button onClick={handleBulkTag}>🏷️ Add Tags</button>
+              <button onClick={handleBulkDelete} className="danger">🗑️ Delete</button>
             </div>
-            <div className="filter-row">
-              <label htmlFor="min-rating">Min Rating: </label>
-              <select 
-                id="min-rating" 
-                value={filterRatingMin} 
-                onChange={e => { setFilterRatingMin(parseInt(e.target.value, 10)); handleFilterChange(); }}
-              >
-                {[0, 1, 2, 3, 4, 5].map(r => (
-                  <option key={r} value={r}>{r === 0 ? 'Any' : `${r}+ Stars`}</option>
-                ))}
-              </select>
-            </div>
-            <div className="filter-row">
-              <label htmlFor="filter-tags">Tags (comma-sep): </label>
-              <input 
-                id="filter-tags"
-                type="text" 
-                placeholder="e.g., beach, person" 
-                value={filterTagNames} 
-                onChange={e => setFilterTagNames(e.target.value)}
-                list="all-tags-list" 
-              />
-            </div>
-            {availableCameraModels.length > 0 && (
-              <div className="filter-row">
-                <label>Camera Model(s): </label>
-                <div className="checkbox-group">
-                  {availableCameraModels.map(model => (
-                    <label key={model} className="checkbox-label">
-                      <input 
-                        type="checkbox" 
-                        value={model}
-                        checked={filterCameraModels.includes(model)}
-                        onChange={e => {
-                          const { value, checked } = e.target;
-                          setFilterCameraModels(prev => 
-                            checked ? [...prev, value] : prev.filter(m => m !== value)
-                          );
-                          handleFilterChange();
-                        }}
-                      /> {model}
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}        
-          </div>
-          
+          )}
+
           {scanStatus && <div className="status-message success">{scanStatus}</div>}
           {error && <div className="status-message error-msg">{error}</div>}
           
+          {exportProgress && (
+            <div className="export-progress">
+              <h4>Exporting... {exportProgress.progress}%</h4>
+              <div className="progress-bar">
+                <div className="progress-fill" style={{width: `${exportProgress.progress}%`}}></div>
+              </div>
+              <p>{exportProgress.processed_images} / {exportProgress.total_images} images</p>
+            </div>
+          )}
+
           {isLoading && !photos.length && <p className="loading">Loading photos...</p>}
           
           {totalPages > 1 && (
             <div className="pagination-controls">
-              <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>
-                Previous
-              </button>
-              <span className="page-info">
-                Page {currentPage} of {totalPages} ({totalItems} total photos)
-              </span>
-              <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>
-                Next
-              </button>
+              <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>Previous</button>
+              <span>Page {currentPage} of {totalPages} ({totalItems} photos)</span>
+              <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>Next</button>
             </div>
           )}
           
@@ -547,56 +564,36 @@ function App() {
                 <div key={photo.id} className={`photo-item ${selectedPhotoIds.includes(photo.id) ? 'selected' : ''}`}>
                   {selectionMode && (
                     <div className="selection-checkbox">
-                      <input 
-                        type="checkbox"
-                        checked={selectedPhotoIds.includes(photo.id)}
-                        onChange={() => togglePhotoSelection(photo.id)}
-                      />
+                      <input type="checkbox" checked={selectedPhotoIds.includes(photo.id)} 
+                        onChange={() => togglePhotoSelection(photo.id)} />
                     </div>
                   )}
                   {photo.thumbnail_path ? (
-                    <img 
-                      src={`${API_BASE_URL}/thumbnails/${photo.thumbnail_path}`} 
-                      alt={photo.original_filename || 'Photo'} 
+                    <img src={`${API_BASE_URL}/thumbnails/${photo.thumbnail_path}`} 
+                      alt={photo.original_filename || 'Photo'}
                       onClick={() => selectionMode && togglePhotoSelection(photo.id)}
-                      style={{ cursor: selectionMode ? 'pointer' : 'default' }}
-                    />
+                      style={{ cursor: selectionMode ? 'pointer' : 'default' }} />
                   ) : (
                     <div className="no-thumbnail">No Thumbnail</div>
                   )}
                   <div className="info">
                     <p title={photo.original_filename}>
-                      <strong>File:</strong> {
-                        photo.original_filename 
-                          ? photo.original_filename.substring(0,20) + (photo.original_filename.length > 20 ? "..." : "") 
-                          : 'N/A'
-                      }
+                      <strong>File:</strong> {photo.original_filename?.substring(0,20) + (photo.original_filename?.length > 20 ? "..." : "") || 'N/A'}
                     </p>
                     <p><strong>Date:</strong> {formatDate(photo.capture_date)}</p>
-                    <p><strong>Camera:</strong> {photo.camera_model || 'N/A'}</p>
                     
-                    <StarRating 
-                      photoId={photo.id} 
-                      rating={photo.rating || 0} 
-                      onRate={handleRatePhoto} 
-                      isLoading={ratingLoading[photo.id]}
-                    />
+                    <StarRating photoId={photo.id} rating={photo.rating || 0} 
+                      onRate={handleRatePhoto} isLoading={ratingLoading[photo.id]} />
                     
                     {photo.associated_tags && photo.associated_tags.length > 0 && (
                       <div className="tags-display">
-                        <strong>Tags: </strong>
                         {photo.associated_tags.map(tagInfo => (
-                          <span 
-                            key={tagInfo.id} 
-                            className={`tag-chip ${tagInfo.is_ai_generated ? 'ai-tag' : 'manual-tag'}`}
-                            title={tagInfo.is_ai_generated ? `AI Tag (${tagInfo.confidence?.toFixed(2)})` : 'Manual Tag'}
-                          >
+                          <span key={tagInfo.id} 
+                            className={`tag-chip ${tagInfo.is_ai_generated ? 'ai-tag' : 'manual-tag'}`}>
                             {tagInfo.name}
-                            <button 
-                              className="remove-tag-btn" 
+                            <button className="remove-tag-btn" 
                               onClick={() => handleRemoveTag(photo.id, tagInfo.id)}
-                              disabled={tagLoading[`${photo.id}-${tagInfo.id}`]}
-                            >
+                              disabled={tagLoading[`${photo.id}-${tagInfo.id}`]}>
                               {tagLoading[`${photo.id}-${tagInfo.id}`] ? '...' : '×'}
                             </button>
                           </span>
@@ -605,32 +602,12 @@ function App() {
                     )}
 
                     <div className="add-tag-section">
-                      <input 
-                        type="text" 
-                        placeholder="Add tag..."
-                        value={tagInputs[photo.id] || ''}
+                      <input type="text" placeholder="Add tag..." value={tagInputs[photo.id] || ''}
                         onChange={(e) => handleTagInputChange(photo.id, e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && e.target.value) {
-                            handleAddTag(photo.id, e.target.value);
-                          }
-                        }}
-                        list="all-tags-list"
-                        disabled={tagLoading[photo.id]}
-                      />
-                      {allTags.length > 0 && (
-                        <datalist id="all-tags-list">
-                          {allTags.map(tag => <option key={tag.id} value={tag.name} />)}
-                        </datalist>
-                      )}
-                      <button 
-                        onClick={() => {
-                          const tagName = tagInputs[photo.id];
-                          if (tagName) handleAddTag(photo.id, tagName);
-                        }}
-                        className="add-tag-button"
-                        disabled={tagLoading[photo.id]}
-                      >
+                        onKeyDown={(e) => e.key === 'Enter' && e.target.value && handleAddTag(photo.id, e.target.value)}
+                        list="all-tags-list" disabled={tagLoading[photo.id]} />
+                      <button onClick={() => tagInputs[photo.id] && handleAddTag(photo.id, tagInputs[photo.id])}
+                        className="add-tag-button" disabled={tagLoading[photo.id]}>
                         {tagLoading[photo.id] ? '...' : 'Add'}
                       </button>
                     </div>
@@ -638,66 +615,38 @@ function App() {
                 </div>
               ))}
             </div>
-          ) : (
-            !isLoading && <p>No photos found.</p>
-          )}
-
-          {totalPages > 1 && photos.length > 0 && (
-            <div className="pagination-controls">
-              <button onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>
-                Previous
-              </button>
-              <span className="page-info">Page {currentPage} of {totalPages}</span>
-              <button onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === totalPages}>
-                Next
-              </button>
-            </div>
-          )}
+          ) : !isLoading && <p>No photos found.</p>}
         </>
       )}
 
-      {/* Albums View */}
       {currentView === 'albums' && (
         <>
           {!selectedAlbum ? (
             <>
               <div className="albums-header">
                 <h2>My Albums</h2>
-                <button onClick={() => setShowCreateAlbum(true)} className="create-album-btn">
-                  + Create Album
-                </button>
+                <button onClick={() => setShowCreateAlbum(true)} className="create-album-btn">+ Create Album</button>
               </div>
-
               {error && <div className="status-message error-msg">{error}</div>}
-
               <div className="albums-grid">
                 {albums.map(album => (
                   <div key={album.id} className="album-card">
-                    <div 
-                      className="album-cover"
-                      onClick={() => fetchAlbumDetails(album.id)}
-                    >
-                      {album.cover_image && album.cover_image.thumbnail_path ? (
-                        <img 
-                          src={`${API_BASE_URL}/thumbnails/${album.cover_image.thumbnail_path}`}
-                          alt={album.name}
-                        />
-                      ) : (
-                        <div className="no-cover">📁</div>
-                      )}
+                    <div className="album-cover" onClick={() => fetchAlbumDetails(album.id)}>
+                      {album.cover_image?.thumbnail_path ? (
+                        <img src={`${API_BASE_URL}/thumbnails/${album.cover_image.thumbnail_path}`} alt={album.name} />
+                      ) : <div className="no-cover">📁</div>}
                     </div>
                     <div className="album-info">
                       <h3>{album.name}</h3>
                       <p>{album.photo_count} photo{album.photo_count !== 1 ? 's' : ''}</p>
                       {album.description && <p className="album-desc">{album.description}</p>}
                       <div className="album-actions">
+                        <button onClick={() => { setEditAlbumData(album); setShowEditAlbum(true); }}>Edit</button>
                         <button onClick={() => {
-                          setEditAlbumData(album);
-                          setShowEditAlbum(true);
-                        }}>Edit</button>
-                        <button onClick={() => handleDeleteAlbum(album.id)} className="delete-btn">
-                          Delete
-                        </button>
+                          setSelectedAlbum(album);
+                          setShowExportModal(true);
+                        }}>Export</button>
+                        <button onClick={() => handleDeleteAlbum(album.id)} className="delete-btn">Delete</button>
                       </div>
                     </div>
                   </div>
@@ -707,34 +656,25 @@ function App() {
           ) : (
             <>
               <div className="album-detail-header">
-                <button onClick={() => { setSelectedAlbum(null); setAlbumPhotos([]); }}>
-                  ← Back to Albums
-                </button>
+                <button onClick={() => { setSelectedAlbum(null); setAlbumPhotos([]); }}>← Back</button>
                 <h2>{selectedAlbum.name}</h2>
                 <p>{selectedAlbum.description}</p>
                 <p className="photo-count">{albumPhotos.length} photos</p>
+                <button onClick={() => setShowExportModal(true)} className="export-album-btn">Export Album</button>
               </div>
-
               {error && <div className="status-message error-msg">{error}</div>}
-
               <div className="photo-grid">
                 {albumPhotos.map(albumPhoto => (
                   <div key={albumPhoto.image_id} className="photo-item">
                     {albumPhoto.image.thumbnail_path ? (
-                      <img 
-                        src={`${API_BASE_URL}/thumbnails/${albumPhoto.image.thumbnail_path}`}
-                        alt={albumPhoto.image.original_filename || 'Photo'}
-                      />
-                    ) : (
-                      <div className="no-thumbnail">No Thumbnail</div>
-                    )}
+                      <img src={`${API_BASE_URL}/thumbnails/${albumPhoto.image.thumbnail_path}`}
+                        alt={albumPhoto.image.original_filename || 'Photo'} />
+                    ) : <div className="no-thumbnail">No Thumbnail</div>}
                     <div className="info">
                       <p><strong>File:</strong> {albumPhoto.image.original_filename || 'N/A'}</p>
-                      <button 
-                        className="remove-from-album-btn"
-                        onClick={() => handleRemovePhotoFromAlbum(selectedAlbum.id, albumPhoto.image_id)}
-                      >
-                        Remove from Album
+                      <button className="remove-from-album-btn"
+                        onClick={() => handleRemovePhotoFromAlbum(selectedAlbum.id, albumPhoto.image_id)}>
+                        Remove
                       </button>
                     </div>
                   </div>
@@ -745,22 +685,14 @@ function App() {
         </>
       )}
 
-      {/* Create Album Modal */}
       {showCreateAlbum && (
         <div className="modal-overlay" onClick={() => setShowCreateAlbum(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
-            <h3>Create New Album</h3>
-            <input 
-              type="text"
-              placeholder="Album Name"
-              value={newAlbumName}
-              onChange={e => setNewAlbumName(e.target.value)}
-            />
-            <textarea 
-              placeholder="Description (optional)"
-              value={newAlbumDescription}
-              onChange={e => setNewAlbumDescription(e.target.value)}
-            />
+            <h3>Create Album</h3>
+            <input type="text" placeholder="Album Name" value={newAlbumName} 
+              onChange={e => setNewAlbumName(e.target.value)} />
+            <textarea placeholder="Description" value={newAlbumDescription} 
+              onChange={e => setNewAlbumDescription(e.target.value)} />
             <div className="modal-actions">
               <button onClick={handleCreateAlbum}>Create</button>
               <button onClick={() => setShowCreateAlbum(false)}>Cancel</button>
@@ -769,22 +701,14 @@ function App() {
         </div>
       )}
 
-      {/* Edit Album Modal */}
       {showEditAlbum && editAlbumData && (
         <div className="modal-overlay" onClick={() => setShowEditAlbum(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h3>Edit Album</h3>
-            <input 
-              type="text"
-              placeholder="Album Name"
-              value={editAlbumData.name}
-              onChange={e => setEditAlbumData({...editAlbumData, name: e.target.value})}
-            />
-            <textarea 
-              placeholder="Description (optional)"
-              value={editAlbumData.description || ''}
-              onChange={e => setEditAlbumData({...editAlbumData, description: e.target.value})}
-            />
+            <input type="text" placeholder="Album Name" value={editAlbumData.name} 
+              onChange={e => setEditAlbumData({...editAlbumData, name: e.target.value})} />
+            <textarea placeholder="Description" value={editAlbumData.description || ''} 
+              onChange={e => setEditAlbumData({...editAlbumData, description: e.target.value})} />
             <div className="modal-actions">
               <button onClick={handleUpdateAlbum}>Update</button>
               <button onClick={() => setShowEditAlbum(false)}>Cancel</button>
@@ -793,18 +717,13 @@ function App() {
         </div>
       )}
 
-      {/* Add to Album Modal */}
       {showAddToAlbumModal && (
         <div className="modal-overlay" onClick={() => setShowAddToAlbumModal(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
             <h3>Add {selectedPhotoIds.length} Photos to Album</h3>
             <div className="album-list">
               {albums.map(album => (
-                <button 
-                  key={album.id}
-                  className="album-list-item"
-                  onClick={() => handleAddPhotosToAlbum(album.id)}
-                >
+                <button key={album.id} className="album-list-item" onClick={() => handleAddPhotosToAlbum(album.id)}>
                   {album.name} ({album.photo_count} photos)
                 </button>
               ))}
@@ -814,6 +733,47 @@ function App() {
             </div>
           </div>
         </div>
+      )}
+
+      {showExportModal && (
+        <div className="modal-overlay" onClick={() => setShowExportModal(false)}>
+          <div className="modal" onClick={e => e.stopPropagation()}>
+            <h3>Export Photos</h3>
+            <div className="export-options">
+              <label>
+                Format:
+                <select value={exportFormat} onChange={e => setExportFormat(e.target.value)}>
+                  <option value="zip">ZIP Archive</option>
+                  <option value="folder">Folder</option>
+                </select>
+              </label>
+              <label>
+                Quality:
+                <select value={exportQuality} onChange={e => setExportQuality(e.target.value)}>
+                  <option value="original">Original</option>
+                  <option value="high">High (1920x1080)</option>
+                  <option value="medium">Medium (1280x720)</option>
+                  <option value="low">Low (640x480)</option>
+                </select>
+              </label>
+              <p>
+                {selectedAlbum 
+                  ? `Exporting album: ${selectedAlbum.name} (${selectedAlbum.photo_count} photos)`
+                  : `Exporting ${selectedPhotoIds.length} selected photo(s)`}
+              </p>
+            </div>
+            <div className="modal-actions">
+              <button onClick={handleExport}>Export</button>
+              <button onClick={() => setShowExportModal(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {allTags.length > 0 && (
+        <datalist id="all-tags-list">
+          {allTags.map(tag => <option key={tag.id} value={tag.name} />)}
+        </datalist>
       )}
     </div>
   );

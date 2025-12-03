@@ -1,6 +1,7 @@
 from pydantic import BaseModel, Field, validator
 from typing import Optional, List
 from datetime import datetime
+from enum import Enum
 
 # --- Tag Schemas ---
 class TagBase(BaseModel):
@@ -145,3 +146,77 @@ class RemovePhotosFromAlbumRequest(BaseModel):
 class PaginatedAlbumResponse(BaseModel):
     items: List[Album]
     meta: PaginationMeta
+
+# --- Export Schemas (Phase 5) ---
+class ExportFormat(str, Enum):
+    ZIP = "zip"
+    FOLDER = "folder"
+
+class ImageQuality(str, Enum):
+    ORIGINAL = "original"
+    HIGH = "high"
+    MEDIUM = "medium"
+    LOW = "low"
+
+class ExportRequest(BaseModel):
+    album_id: Optional[int] = None
+    image_ids: Optional[List[int]] = Field(None, min_items=1)
+    export_format: ExportFormat = ExportFormat.ZIP
+    quality: ImageQuality = ImageQuality.HIGH
+    include_metadata: bool = True
+    destination_path: Optional[str] = None
+    
+    @validator('image_ids', 'album_id')
+    def validate_export_source(cls, v, values):
+        # At least one of album_id or image_ids must be provided
+        if 'album_id' in values and not values.get('album_id') and not v:
+            raise ValueError('Either album_id or image_ids must be provided')
+        return v
+
+class ExportStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+class ExportJob(BaseModel):
+    job_id: str
+    status: ExportStatus
+    progress: int = 0  # 0-100
+    total_images: int
+    processed_images: int = 0
+    export_path: Optional[str] = None
+    error_message: Optional[str] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None
+
+class ExportJobResponse(BaseModel):
+    job_id: str
+    status: ExportStatus
+    message: str
+
+class BulkDeleteRequest(BaseModel):
+    image_ids: List[int] = Field(..., min_items=1, max_items=100)
+    
+class BulkDeleteResponse(BaseModel):
+    deleted_count: int
+    failed_count: int
+    failed_ids: List[int] = []
+    errors: List[str] = []
+
+class BulkTagRequest(BaseModel):
+    image_ids: List[int] = Field(..., min_items=1, max_items=100)
+    tag_names: List[str] = Field(..., min_items=1, max_items=10)
+
+class BulkTagResponse(BaseModel):
+    success_count: int
+    failed_count: int
+    tags_added: int
+
+class BulkRatingRequest(BaseModel):
+    image_ids: List[int] = Field(..., min_items=1, max_items=100)
+    rating: int = Field(..., ge=0, le=5)
+
+class BulkRatingResponse(BaseModel):
+    updated_count: int
+    failed_count: int
