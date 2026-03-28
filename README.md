@@ -67,9 +67,7 @@ A desktop application for photographers and creatives to organize, tag, rate, an
 
 ---
 
-## 🚀 Upcoming Features
-
-### Phase 6: Final Polish & Advanced Features
+## ✅ Phase 6: Final Polish & Advanced Features
 - Advanced search with boolean operators and saved searches
 - Keyboard shortcuts for power users
 - Drag-and-drop photo organization
