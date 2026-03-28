@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, BackgroundTasks 
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session, selectinload
 from typing import List, Optional
 from datetime import datetime
@@ -268,6 +269,25 @@ async def read_images(
     except Exception as e:
         print(f"Error fetching images: {e}")
         raise HTTPException(status_code=500, detail="Failed to fetch images")
+
+@router.get("/images/{image_id}/full")
+async def get_full_image(
+    image_id: int,
+    db: Session = Depends(get_db)
+):
+    """Serve the full-size original image file"""
+    db_image = db.query(models.Image).filter(models.Image.id == image_id).first()
+    if not db_image:
+        raise HTTPException(status_code=404, detail="Image not found")
+    
+    if not os.path.exists(db_image.file_path):
+        raise HTTPException(status_code=404, detail="Image file not found on disk")
+    
+    return FileResponse(
+        path=db_image.file_path,
+        filename=db_image.original_filename or os.path.basename(db_image.file_path),
+        media_type="image/jpeg"
+    )
 
 @router.post("/images/{image_id}/rate", response_model=schemas.Image)
 async def rate_image_endpoint(

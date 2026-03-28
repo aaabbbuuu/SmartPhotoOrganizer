@@ -38,15 +38,46 @@ app.mount("/thumbnails", StaticFiles(directory=str(THUMBNAILS_DIR)), name="thumb
 async def root():
     return {
         "message": "Welcome to Smart Photo Organizer API",
-        "version": "1.5.0",
+        "version": "2.0.0",
         "features": [
             "Photo Management",
             "AI Tagging",
             "Albums",
             "Export (ZIP/Folder)",
-            "Bulk Operations"
+            "Bulk Operations",
+            "Full Image Serving",
+            "Library Statistics"
         ]
     }
+
+@app.get("/api/stats")
+async def get_stats():
+    """Get library statistics"""
+    from .core.database import SessionLocal
+    from . import models
+    from sqlalchemy import func
+    
+    db = SessionLocal()
+    try:
+        total_photos = db.query(func.count(models.Image.id)).scalar() or 0
+        total_albums = db.query(func.count(models.Album.id)).scalar() or 0
+        total_tags = db.query(func.count(models.Tag.id)).scalar() or 0
+        cameras = db.query(func.count(func.distinct(models.Image.camera_model))).filter(
+            models.Image.camera_model.isnot(None)
+        ).scalar() or 0
+        rated = db.query(func.count(models.Image.id)).filter(models.Image.rating > 0).scalar() or 0
+        avg_rating = db.query(func.avg(models.Image.rating)).filter(models.Image.rating > 0).scalar()
+        
+        return {
+            "total_photos": total_photos,
+            "total_albums": total_albums,
+            "total_tags": total_tags,
+            "total_cameras": cameras,
+            "rated_photos": rated,
+            "average_rating": round(avg_rating, 1) if avg_rating else 0
+        }
+    finally:
+        db.close()
 
 # To run the backend:
 # cd SMARTPHOTOORGANIZER/backend
